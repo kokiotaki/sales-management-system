@@ -1,0 +1,2654 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>売上管理システム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .input-field {
+            transition: all 0.3s ease;
+        }
+        .input-field:focus {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.25);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        .ranking-item {
+            transition: all 0.3s ease;
+        }
+        .ranking-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        .edit-row {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+        }
+        .modified-text {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            animation: slideIn 0.5s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .modal {
+            backdrop-filter: blur(10px);
+        }
+        .password-modal {
+            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.5);
+        }
+        .locked-tab {
+            position: relative;
+            overflow: hidden;
+        }
+        .locked-tab::after {
+            content: '🔒';
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            font-size: 12px;
+        }
+        .comparison-indicator {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .comparison-up {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .comparison-down {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .comparison-neutral {
+            background: #f3f4f6;
+            color: #374151;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-400 via-pink-500 to-red-500">
+    <div class="min-h-screen">
+        <!-- ヘッダー -->
+        <header class="bg-white/20 backdrop-blur-md border-b border-white/30">
+            <div class="container mx-auto px-4 py-4">
+                <h1 class="text-2xl font-bold text-white text-center">
+                    📊 売上管理システム
+                </h1>
+            </div>
+        </header>
+
+        <!-- タブナビゲーション -->
+        <nav class="bg-white/10 backdrop-blur-md border-b border-white/20">
+            <div class="container mx-auto px-4">
+                <div class="flex flex-wrap justify-center space-x-1 md:space-x-4 py-2">
+                    <button class="tab-button active px-3 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-all" data-tab="input">
+                        📝 売上入力
+                    </button>
+                    <button class="tab-button px-3 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-all" data-tab="analysis">
+                        📈 店舗分析
+                    </button>
+                    <button class="tab-button px-3 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-all" data-tab="ranking">
+                        🏆 ランキング
+                    </button>
+                    <button class="tab-button px-3 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-all" data-tab="history">
+                        📋 履歴管理
+                    </button>
+                    <button class="tab-button locked-tab px-3 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-all" data-tab="headquarters">
+                        🏢 本部管理
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- メインコンテンツ -->
+        <main class="container mx-auto px-4 py-6">
+            
+            <!-- 1. 売上入力画面 -->
+            <div id="input" class="tab-content active">
+                <div class="card p-6 max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">
+                        📝 売上日報入力
+                    </h2>
+                    
+                    <form id="salesForm" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- 日付選択 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">📅 日付</label>
+                                <input type="text" id="date" class="input-field w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="日付を選択" readonly required>
+                            </div>
+                            
+                            <!-- 店舗選択 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">🏪 店舗</label>
+                                <select id="store_id" class="input-field w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                                    <option value="">店舗を選択</option>
+                                    <option value="store_001">本店</option>
+                                    <option value="store_002">支店A</option>
+                                    <option value="store_003">支店B</option>
+                                    <option value="store_004">支店C</option>
+                                </select>
+                            </div>
+                            
+                            <!-- スタッフ名 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">👤 担当スタッフ</label>
+                                <input type="text" id="staff_name" class="input-field w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="スタッフ名を入力" required>
+                            </div>
+                            
+                            <!-- 現金売上 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">💰 現金売上</label>
+                                <input type="number" id="cash_sales" class="input-field w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="0" min="0" step="1">
+                            </div>
+                            
+                            <!-- カード売上 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">💳 カード売上</label>
+                                <input type="number" id="card_sales" class="input-field w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="0" min="0" step="1">
+                            </div>
+                            
+                            <!-- 経費 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">🧾 経費</label>
+                                <input type="number" id="expense" class="input-field w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="0" min="0" step="1">
+                            </div>
+                            
+                            <!-- 酒類配送額 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">🍺 酒類配送額</label>
+                                <input type="number" id="liquor_delivery" class="input-field w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="0" min="0" step="1">
+                            </div>
+
+                            <!-- 日払い -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">💸 日払い（その他）</label>
+                                <input type="number" id="daily_payment" class="input-field w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="0" min="0" step="1">
+                            </div>
+                        </div>
+
+                        <!-- コメント欄 -->
+                        <div class="mt-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">📝 コメント</label>
+                            <textarea id="comment" class="input-field w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" rows="3" placeholder="備考やコメントを入力してください"></textarea>
+                        </div>
+                        
+                        <!-- 自動計算結果 -->
+                        <div class="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200 mt-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="text-center">
+                                    <div class="text-sm text-gray-600 mb-1">📊 合計売上</div>
+                                    <div id="totalSalesDisplay" class="text-2xl font-bold text-purple-600">¥0</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-sm text-gray-600 mb-1">💼 封筒残金</div>
+                                    <div id="envelopeBalanceDisplay" class="text-2xl font-bold text-green-600">¥0</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 登録ボタン -->
+                        <div class="text-center mt-6">
+                            <button type="submit" class="btn-primary px-8 py-3 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                                💾 日報を登録する
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 2. 店舗分析画面 -->
+            <div id="analysis" class="tab-content">
+                <div class="card p-6 max-w-4xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">
+                        📈 店舗分析
+                    </h2>
+                    
+                    <!-- フィルター -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">🏪 店舗選択</label>
+                            <select id="analysisStore" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <option value="">全店舗</option>
+                                <option value="store_001">本店</option>
+                                <option value="store_002">支店A</option>
+                                <option value="store_003">支店B</option>
+                                <option value="store_004">支店C</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">👤 スタッフ選択</label>
+                            <select id="analysisStaff" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <option value="">全スタッフ</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">📅 開始日</label>
+                            <input type="text" id="analysisFromDate" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="開始日" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">📅 終了日</label>
+                            <input type="text" id="analysisToDate" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="終了日" readonly>
+                        </div>
+                    </div>
+                    
+                    <!-- グラフ表示 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- 日別売上＋予算ライングラフ -->
+                        <div class="bg-white p-4 rounded-lg shadow-inner">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">📊 日別売上＋予算ライン</h3>
+                            <div class="relative h-80">
+                                <canvas id="analysisChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- 月内進捗＋目標達成グラフ -->
+                        <div class="bg-white p-4 rounded-lg shadow-inner">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">📈 月内進捗＋目標達成</h3>
+                            <div class="relative h-80">
+                                <canvas id="comparisonChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 店舗ランキング画面 -->
+            <div id="ranking" class="tab-content">
+                <div class="card p-6 max-w-4xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">
+                        🏆 店舗ランキング
+                    </h2>
+                    
+                    <!-- 期間選択 -->
+                    <div class="bg-gradient-to-r from-yellow-50 to-orange-50 p-4 rounded-lg border border-yellow-200 mb-6">
+                        <h3 class="text-lg font-semibold text-orange-800 mb-4">📅 期間選択</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-orange-700 mb-2">開始日</label>
+                                <input type="text" id="rankingFromDate" class="w-full px-4 py-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white" placeholder="開始日" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-orange-700 mb-2">終了日</label>
+                                <input type="text" id="rankingToDate" class="w-full px-4 py-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white" placeholder="終了日" readonly>
+                            </div>
+                            <div class="flex items-end">
+                                <button id="rankingUpdateBtn" class="w-full bg-gradient-to-r from-orange-600 to-yellow-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-orange-700 hover:to-yellow-700 transition-all duration-300 transform hover:scale-105 shadow-lg">
+                                    🔄 更新
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="rankingList" class="space-y-3">
+                        <!-- ランキングがここに表示される -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. 履歴管理画面 -->
+            <div id="history" class="tab-content">
+                <div class="card p-6 max-w-6xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">
+                        📋 履歴管理
+                    </h2>
+                    
+                    <!-- フィルター -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">🏪 店舗選択</label>
+                            <select id="historyStore" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <option value="">全店舗</option>
+                                <option value="store_001">本店</option>
+                                <option value="store_002">支店A</option>
+                                <option value="store_003">支店B</option>
+                                <option value="store_004">支店C</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">📅 開始日</label>
+                            <input type="text" id="historyFromDate" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="開始日" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">📅 終了日</label>
+                            <input type="text" id="historyToDate" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="終了日" readonly>
+                        </div>
+                        <div class="flex items-end">
+                            <label class="flex items-center">
+                                <input type="checkbox" id="modifiedOnly" class="mr-2 text-purple-600 focus:ring-purple-500 rounded">
+                                <span class="text-sm text-gray-700">修正のみ表示</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 履歴テーブル -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 font-medium text-gray-900">日付</th>
+                                    <th class="px-4 py-3 font-medium text-gray-900">店舗</th>
+                                    <th class="px-4 py-3 font-medium text-gray-900">現金売上</th>
+                                    <th class="px-4 py-3 font-medium text-gray-900">カード売上</th>
+                                    <th class="px-4 py-3 font-medium text-gray-900">経費</th>
+                                    <th class="px-4 py-3 font-medium text-gray-900">合計売上</th>
+                                    <th class="px-4 py-3 font-medium text-gray-900">封筒残金</th>
+                                    <th class="px-4 py-3 font-medium text-gray-900">編集者</th>
+                                    <th class="px-4 py-3 font-medium text-gray-900">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <!-- 履歴データがここに表示される -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. 本部管理画面 -->
+            <div id="headquarters" class="tab-content">
+                <div class="card p-6 max-w-7xl mx-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">
+                        🏢 本部管理画面
+                    </h2>
+                    
+                    <!-- 期間・店舗選択 -->
+                    <div class="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-lg shadow-sm border border-purple-200 mb-6">
+                        <h3 class="text-lg font-semibold text-purple-800 mb-4">📅 期間・店舗選択</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-purple-700 mb-2">店舗選択</label>
+                                <select id="hqStoreSelect" class="w-full px-4 py-3 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white">
+                                    <option value="">全店舗</option>
+                                    <option value="store_001">本店</option>
+                                    <option value="store_002">支店A</option>
+                                    <option value="store_003">支店B</option>
+                                    <option value="store_004">支店C</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-purple-700 mb-2">開始日</label>
+                                <input type="text" id="hqFromDate" class="w-full px-4 py-3 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white" placeholder="開始日" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-purple-700 mb-2">終了日</label>
+                                <input type="text" id="hqToDate" class="w-full px-4 py-3 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white" placeholder="終了日" readonly>
+                            </div>
+                            <div class="flex items-end">
+                                <button id="hqUpdateBtn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 shadow-lg">
+                                    <span id="updateBtnText">🔄 更新</span>
+                                    <span id="updateBtnLoading" class="hidden">⏳ 更新中...</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 統計カード -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg border border-blue-200 transform transition-all duration-300 hover:scale-105">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-blue-800 mb-2">📊 総売上</h3>
+                                    <p class="text-3xl font-bold text-blue-600" id="totalSalesAmount">¥0</p>
+                                    <p class="text-sm text-blue-500 mt-1">全店舗合計</p>
+                                </div>
+                                <div class="text-4xl text-blue-300">💰</div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg border border-green-200 transform transition-all duration-300 hover:scale-105">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-green-800 mb-2">📈 日平均</h3>
+                                    <p class="text-3xl font-bold text-green-600" id="avgDailySales">¥0</p>
+                                    <p class="text-sm text-green-500 mt-1">日平均売上</p>
+                                </div>
+                                <div class="text-4xl text-green-300">📈</div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg border border-purple-200 transform transition-all duration-300 hover:scale-105">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-purple-800 mb-2">🏢 店舗数</h3>
+                                    <p class="text-3xl font-bold text-purple-600" id="activeStoreCount">4</p>
+                                    <p class="text-sm text-purple-500 mt-1">稼働店舗数</p>
+                                </div>
+                                <div class="text-4xl text-purple-300">🏢</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ダッシュボード -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- 店舗別パフォーマンス -->
+                        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">🏆 店舗別パフォーマンス</h3>
+                            <div class="space-y-3" id="storePerformanceList">
+                                <!-- 店舗パフォーマンスがここに表示される -->
+                            </div>
+                        </div>
+                        
+                        <!-- 月別トレンド -->
+                        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">📈 月別トレンド（前月対比）</h3>
+                            <div class="h-64">
+                                <canvas id="monthlyTrendChart" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 詳細レポート -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">📄 詳細レポート</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 font-medium text-gray-900">日付</th>
+                                        <th class="px-4 py-3 font-medium text-gray-900">店舗</th>
+                                        <th class="px-4 py-3 font-medium text-gray-900">売上</th>
+                                        <th class="px-4 py-3 font-medium text-gray-900">経費</th>
+                                        <th class="px-4 py-3 font-medium text-gray-900">利益</th>
+                                        <th class="px-4 py-3 font-medium text-gray-900">達成率</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hqDetailTableBody">
+                                    <!-- 詳細データがここに表示される -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- 店舗管理セクション -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">🏢 店舗管理</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- 店舗一覧 -->
+                            <div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="font-semibold text-gray-700">店舗一覧</h4>
+                                    <button id="addStoreBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
+                                        + 新規店舗
+                                    </button>
+                                </div>
+                                <div class="space-y-2" id="storeManagementList">
+                                    <!-- 店舗リストがここに表示される -->
+                                </div>
+                            </div>
+                            
+                            <!-- 予算設定 -->
+                            <div>
+                                <h4 class="font-semibold text-gray-700 mb-4">予算設定</h4>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">店舗選択</label>
+                                        <select id="budgetStoreSelect" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                            <option value="">店舗を選択</option>
+                                            <option value="store_001">本店</option>
+                                            <option value="store_002">支店A</option>
+                                            <option value="store_003">支店B</option>
+                                            <option value="store_004">支店C</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">月間予算</label>
+                                        <input type="number" id="budgetAmount" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="予算金額" min="0" step="1000">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">📅 対象月</label>
+                                        <input type="text" id="budgetMonth" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="対象月を選択" readonly>
+                                    </div>
+                                    <button id="saveBudgetBtn" class="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+                                        💾 予算保存
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 純利益計算シート -->
+                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg border border-indigo-200 mt-6">
+                        <h3 class="text-xl font-bold text-indigo-800 mb-6 text-center">💰 純利益計算シート</h3>
+                        
+                        <!-- 期間選択 -->
+                        <div class="bg-white p-4 rounded-lg border border-gray-200 mb-6">
+                            <h4 class="font-semibold text-gray-800 mb-4">📅 計算期間・店舗選択</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div>
+                                    <label for="profitFromDate" class="block text-sm font-medium text-gray-700 mb-2">開始日</label>
+                                    <input type="text" id="profitFromDate" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="開始日を選択" readonly>
+                                </div>
+                                <div>
+                                    <label for="profitToDate" class="block text-sm font-medium text-gray-700 mb-2">終了日</label>
+                                    <input type="text" id="profitToDate" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="終了日を選択" readonly>
+                                </div>
+                                <div>
+                                    <label for="profitStoreSelect" class="block text-sm font-medium text-gray-700 mb-2">店舗選択</label>
+                                    <select id="profitStoreSelect" class="w-full p-3 border border-gray-300 rounded-lg">
+                                        <option value="">全店舗</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-end">
+                                    <button id="calculateProfitBtn" class="w-full p-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">
+                                        📊 計算実行
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 自動入力基本データ -->
+                        <div class="bg-white p-4 rounded-lg border border-gray-200 mb-6">
+                            <h4 class="font-semibold text-gray-800 mb-4">📋 基本データ（自動入力）</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">合計売上高 <span class="text-xs text-gray-500">(編集可)</span></label>
+                                    <input type="number" id="autoTotalSales" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">日報経費合計 <span class="text-xs text-gray-500">(編集可)</span></label>
+                                    <input type="number" id="autoExpenses" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">酒類配送額</label>
+                                    <input type="number" id="autoLiquorDelivery" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 手動入力項目 -->
+                        <div class="bg-white p-4 rounded-lg border border-gray-200 mb-6">
+                            <h4 class="font-semibold text-gray-800 mb-4">✏️ 手動入力項目</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">🏠 家賃</label>
+                                    <input type="number" id="rent" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">📡 通信費 (Wi-Fi)</label>
+                                    <input type="number" id="wifi" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">🛡️ 保険料</label>
+                                    <input type="number" id="insurance" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">🤝 業務委託費</label>
+                                    <input type="number" id="outsourcing" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">🎵 リース (第一興商 等)</label>
+                                    <input type="number" id="lease" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">🧻 おしぼり</label>
+                                    <input type="number" id="towels" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">⚡ 電気</label>
+                                    <input type="number" id="electricity" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">💧 水道</label>
+                                    <input type="number" id="water" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">🔥 ガス</label>
+                                    <input type="number" id="gas" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 経費項目追加 -->
+                        <div class="bg-white p-4 rounded-lg border border-gray-200 mb-6">
+                            <h4 class="font-semibold text-gray-800 mb-4">➕ 追加項目（収入・支出）</h4>
+                            
+                            <!-- 動的経費項目 -->
+                            <div id="dynamicExpensesList" class="space-y-3 mb-4">
+                                <!-- 動的に追加される経費項目がここに表示 -->
+                            </div>
+                            
+                            <!-- 経費項目追加フォーム -->
+                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <h5 class="font-medium text-gray-700 mb-3">新規項目追加</h5>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-600 mb-2">項目名</label>
+                                        <input type="text" id="newExpenseName" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="項目名を入力">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-600 mb-2">種別</label>
+                                        <select id="newExpenseType" class="w-full p-3 border border-gray-300 rounded-lg">
+                                            <option value="expense">➖ 支出</option>
+                                            <option value="income">➕ 収入</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-600 mb-2">金額</label>
+                                        <input type="number" id="newExpenseAmount" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="0">
+                                    </div>
+                                    <div class="flex items-end">
+                                        <button id="addExpenseBtn" class="w-full p-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">
+                                            ➕ 追加
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 計算結果 -->
+                        <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-lg border border-green-200">
+                            <h4 class="font-semibold text-green-800 mb-4 text-center">💹 計算結果</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="text-center">
+                                    <p class="text-sm text-green-700 mb-2">総収入</p>
+                                    <p id="totalRevenue" class="text-3xl font-bold text-green-600">¥0</p>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-sm text-green-700 mb-2">総支出</p>
+                                    <p id="totalExpenses" class="text-3xl font-bold text-red-600">¥0</p>
+                                </div>
+                                <div class="text-center md:col-span-2">
+                                    <p class="text-lg text-green-700 mb-2">純利益</p>
+                                    <p id="netProfit" class="text-4xl font-bold text-green-800">¥0</p>
+                                </div>
+                            </div>
+                            <div class="text-center mt-6">
+                                <button id="exportProfitBtn" class="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700">
+                                    📄 CSVエクスポート
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- データクリアボタン -->
+                    <div class="bg-red-50 p-4 rounded-lg border border-red-200 mt-6">
+                        <h4 class="font-semibold text-red-800 mb-4">🗑️ テストデータクリア</h4>
+                        <p class="text-sm text-red-600 mb-4">※ UIは保持し、テストデータのみをクリアします</p>
+                        <button id="clearTestDataBtn" class="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                            🗑️ テストデータをクリア
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- パスワード認証モーダル -->
+    <div id="passwordModal" class="fixed inset-0 password-modal hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 text-center">🔒 本部管理認証</h3>
+                <p class="text-sm text-gray-600 mb-4 text-center">本部管理画面にアクセスするにはパスワードが必要です。</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">パスワード</label>
+                        <input type="password" id="adminPassword" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="パスワードを入力">
+                    </div>
+                    <div id="passwordError" class="text-red-600 text-sm hidden">パスワードが正しくありません。</div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button id="cancelPasswordBtn" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
+                        キャンセル
+                    </button>
+                    <button id="submitPasswordBtn" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                        ログイン
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 編集モーダル -->
+    <div id="editModal" class="fixed inset-0 bg-black/50 modal hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">📝 データ編集</h3>
+                <form id="editForm">
+                    <input type="hidden" id="editId">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">💰 現金売上</label>
+                            <input type="number" id="editCashSales" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" min="0" step="1">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">💳 カード売上</label>
+                            <input type="number" id="editCardSales" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" min="0" step="1">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">🧾 経費</label>
+                            <input type="number" id="editExpense" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" min="0" step="1">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">🍺 酒類配送額</label>
+                            <input type="number" id="editLiquorDelivery" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" min="0" step="1">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">✍️ 編集者名</label>
+                            <input type="text" id="editEditorName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="編集者名を入力" required>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
+                            キャンセル
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                            保存
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 店舗編集モーダル -->
+    <div id="storeEditModal" class="fixed inset-0 bg-black/50 modal hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4" id="storeEditModalTitle">店舗編集</h3>
+                <form id="storeEditForm">
+                    <input type="hidden" id="editStoreId">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">店舗ID</label>
+                            <input type="text" id="editStoreIdInput" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="store_001">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">店舗名</label>
+                            <input type="text" id="editStoreName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="店舗名を入力">
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" id="cancelStoreEditBtn" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
+                            キャンセル
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                            保存
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 確認チェックボックスモーダル -->
+    <div id="confirmationModal" class="fixed inset-0 bg-black/50 modal hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 text-center">📋 登録内容の確認</h3>
+                <div class="space-y-4">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-medium text-gray-800 mb-2">登録内容</h4>
+                        <div class="space-y-2 text-sm">
+                            <div>日付: <span id="confirmDate" class="font-medium"></span></div>
+                            <div>店舗: <span id="confirmStore" class="font-medium"></span></div>
+                            <div>担当スタッフ: <span id="confirmStaff" class="font-medium"></span></div>
+                            <div>現金売上: <span id="confirmCash" class="font-medium"></span></div>
+                            <div>カード売上: <span id="confirmCard" class="font-medium"></span></div>
+                            <div>経費: <span id="confirmExpense" class="font-medium"></span></div>
+                            <div>酒類配送額: <span id="confirmLiquor" class="font-medium"></span></div>
+                            <div class="border-t pt-2 mt-2">
+                                <div>合計売上: <span id="confirmTotal" class="font-medium text-blue-600"></span></div>
+                                <div>封筒残金: <span id="confirmBalance" class="font-medium text-green-600"></span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="checkDate" class="w-5 h-5 text-purple-600 border-gray-300 rounded">
+                            <label for="checkDate" class="text-sm text-gray-700">日付を確認しました</label>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="checkStore" class="w-5 h-5 text-purple-600 border-gray-300 rounded">
+                            <label for="checkStore" class="text-sm text-gray-700">店舗を確認しました</label>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="checkSales" class="w-5 h-5 text-purple-600 border-gray-300 rounded">
+                            <label for="checkSales" class="text-sm text-gray-700">売上金額を確認しました</label>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="checkExpense" class="w-5 h-5 text-purple-600 border-gray-300 rounded">
+                            <label for="checkExpense" class="text-sm text-gray-700">経費を確認しました</label>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="checkTotal" class="w-5 h-5 text-purple-600 border-gray-300 rounded">
+                            <label for="checkTotal" class="text-sm text-gray-700">合計金額を確認しました</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" id="cancelConfirmBtn" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
+                        キャンセル
+                    </button>
+                    <button type="button" id="finalSubmitBtn" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors opacity-50 cursor-not-allowed" disabled>
+                        登録完了
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // グローバル変数
+        let salesData = [];
+        let editHistory = [];
+        let currentChart = null;
+        let comparisonChart = null;
+        let monthlyTrendChart = null;
+        let isHQAuthenticated = false;
+        let storeData = {};
+        let budgetData = {};
+
+        // 店舗マスタ（初期化時に動的に設定）
+        let stores = {};
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFlatpickr();
+            initializeCalculation();
+            initializeTabSwitching();
+            initializeFormSubmission();
+            initializeHistoryFilters();
+            initializeHQAuth();
+            initializeStoreManagement();
+            initializeConfirmationModal();
+            loadData();
+            updateAllViews();
+            
+            // テストデータクリアボタンのイベント
+            document.getElementById('clearTestDataBtn').addEventListener('click', function() {
+                if (confirm('テストデータをクリアしますか？この操作は元に戻せません。')) {
+                    clearTestData();
+                }
+            });
+
+            // 純利益計算ボタンのイベント
+            document.getElementById('calculateProfitBtn').addEventListener('click', function() {
+                calculateProfit();
+            });
+
+            // 純利益CSVエクスポートボタンのイベント
+            document.getElementById('exportProfitBtn').addEventListener('click', function() {
+                exportProfitCSV();
+            });
+
+            // 経費項目追加ボタンのイベント
+            document.getElementById('addExpenseBtn').addEventListener('click', function() {
+                addDynamicExpense();
+            });
+            
+            // 統計情報を初期化
+            setTimeout(() => {
+                updateHQStatistics();
+            }, 200);
+        });
+
+        // Flatpickr初期化
+        function initializeFlatpickr() {
+            // 売上入力の日付
+            flatpickr("#date", {
+                locale: "ja",
+                dateFormat: "Y-m-d",
+                defaultDate: new Date(),
+                allowInput: false
+            });
+
+            // 分析画面の日付範囲
+            flatpickr("#analysisFromDate", {
+                locale: "ja",
+                dateFormat: "Y-m-d",
+                allowInput: false,
+                onChange: function() {
+                    updateAnalysisChart();
+                }
+            });
+
+            flatpickr("#analysisToDate", {
+                locale: "ja",
+                dateFormat: "Y-m-d",
+                allowInput: false,
+                onChange: function() {
+                    updateAnalysisChart();
+                }
+            });
+
+            // ランキング画面の日付範囲
+            flatpickr("#rankingFromDate", {
+                locale: "ja",
+                dateFormat: "Y-m-d",
+                allowInput: false,
+                defaultDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1), // 当月1日
+                onChange: function() {
+                    updateRanking();
+                }
+            });
+
+            flatpickr("#rankingToDate", {
+                locale: "ja",
+                dateFormat: "Y-m-d",
+                allowInput: false,
+                defaultDate: new Date(), // 今日
+                onChange: function() {
+                    updateRanking();
+                }
+            });
+
+            // 履歴画面の日付範囲
+            flatpickr("#historyFromDate", {
+                locale: "ja",
+                dateFormat: "Y-m-d",
+                allowInput: false,
+                onChange: function() {
+                    updateHistoryTable();
+                }
+            });
+
+            flatpickr("#historyToDate", {
+                locale: "ja",
+                dateFormat: "Y-m-d",
+                allowInput: false,
+                onChange: function() {
+                    updateHistoryTable();
+                }
+            });
+
+            // 本部管理画面の日付範囲
+            flatpickr("#hqFromDate", {
+                locale: "ja",
+                dateFormat: "Y-m-d",
+                allowInput: false,
+                onChange: function() {
+                    updateHQDashboard();
+                }
+            });
+
+            flatpickr("#hqToDate", {
+                locale: "ja",
+                dateFormat: "Y-m-d",
+                allowInput: false,
+                onChange: function() {
+                    updateHQDashboard();
+                }
+            });
+
+            // 純利益計算の日付
+            flatpickr("#profitFromDate", {
+                locale: "ja",
+                dateFormat: "Y-m-d",
+                allowInput: false
+            });
+
+            flatpickr("#profitToDate", {
+                locale: "ja",
+                dateFormat: "Y-m-d",
+                allowInput: false
+            });
+
+            // 予算対象月のカレンダー（月選択）
+            flatpickr("#budgetMonth", {
+                locale: "ja",
+                dateFormat: "Y-m",
+                allowInput: false,
+                defaultDate: new Date(),
+                onChange: function(selectedDates, dateStr, instance) {
+                    if (selectedDates.length > 0) {
+                        const date = selectedDates[0];
+                        const yearMonth = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+                        instance.input.value = yearMonth;
+                    }
+                }
+            });
+        }
+
+        // 自動計算の初期化
+        function initializeCalculation() {
+            ['cash_sales', 'card_sales', 'expense', 'daily_payment'].forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('input', calculateValues);
+                }
+            });
+        }
+
+        // 自動計算の実行
+        function calculateValues() {
+            const cashSales = parseInt(document.getElementById('cash_sales').value) || 0;
+            const cardSales = parseInt(document.getElementById('card_sales').value) || 0;
+            const expense = parseInt(document.getElementById('expense').value) || 0;
+            const dailyPayment = parseInt(document.getElementById('daily_payment').value) || 0;
+
+            // 日払いは合計売上にはプラスされない
+            const totalSales = cashSales + cardSales;
+            
+            // 封筒残金からは日払いがマイナスになる
+            const envelopeBalance = cashSales - expense - dailyPayment;
+
+            document.getElementById('totalSalesDisplay').textContent = `¥${formatNumber(totalSales)}`;
+            document.getElementById('envelopeBalanceDisplay').textContent = `¥${formatNumber(envelopeBalance)}`;
+            
+            // 封筒残金の色を変更
+            const balanceDisplay = document.getElementById('envelopeBalanceDisplay');
+            if (envelopeBalance < 0) {
+                balanceDisplay.className = 'text-2xl font-bold text-red-600';
+            } else {
+                balanceDisplay.className = 'text-2xl font-bold text-green-600';
+            }
+        }
+
+        // タブ切り替えの初期化
+        function initializeTabSwitching() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetTab = this.getAttribute('data-tab');
+                    
+                    // すべてのタブを非アクティブに
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // 選択されたタブをアクティブに
+                    this.classList.add('active');
+                    document.getElementById(targetTab).classList.add('active');
+                    
+                    // タブ切り替え時の処理
+                    if (targetTab === 'analysis') {
+                        updateAnalysisChart();
+                    } else if (targetTab === 'ranking') {
+                        updateRanking();
+                    } else if (targetTab === 'history') {
+                        updateHistoryTable();
+                    } else if (targetTab === 'headquarters') {
+                        if (!isHQAuthenticated) {
+                            showPasswordModal();
+                            return;
+                        }
+                        updateHeadquartersView();
+                    }
+                });
+            });
+        }
+
+        // フォーム送信の初期化
+        function initializeFormSubmission() {
+            const form = document.getElementById('salesForm');
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                submitSalesData();
+            });
+
+            const editForm = document.getElementById('editForm');
+            editForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveEdit();
+            });
+        }
+
+        // 履歴フィルターの初期化
+        function initializeHistoryFilters() {
+            ['analysisStore', 'analysisStaff', 'historyStore', 'modifiedOnly', 'hqStoreSelect'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('change', function() {
+                        if (id === 'analysisStore') {
+                            updateStaffOptions();
+                            updateAnalysisChart();
+                        } else if (id === 'analysisStaff') {
+                            updateAnalysisChart();
+                        } else if (id === 'hqStoreSelect') {
+                            updateHQDashboard();
+                        } else {
+                            updateHistoryTable();
+                        }
+                    });
+                }
+            });
+
+            // 本部管理更新ボタン
+            document.getElementById('hqUpdateBtn').addEventListener('click', function() {
+                showUpdateLoading();
+                updateHQDashboard();
+                setTimeout(() => {
+                    hideUpdateLoading();
+                    showToast('データが更新されました', 'success');
+                }, 800);
+            });
+
+            // ランキング更新ボタン
+            document.getElementById('rankingUpdateBtn').addEventListener('click', function() {
+                updateRanking();
+                showToast('ランキングを更新しました', 'success');
+            });
+        }
+
+        // 売上データの送信
+        function submitSalesData() {
+            const cashSales = parseInt(document.getElementById('cash_sales').value) || 0;
+            const cardSales = parseInt(document.getElementById('card_sales').value) || 0;
+            const expense = parseInt(document.getElementById('expense').value) || 0;
+            const dailyPayment = parseInt(document.getElementById('daily_payment').value) || 0;
+
+            const formData = {
+                id: Date.now().toString(),
+                date: document.getElementById('date').value,
+                store_id: document.getElementById('store_id').value,
+                staff_name: document.getElementById('staff_name').value.trim(),
+                cash_sales: cashSales,
+                card_sales: cardSales,
+                expense: expense,
+                liquor_delivery: parseInt(document.getElementById('liquor_delivery').value) || 0,
+                daily_payment: dailyPayment,
+                comment: document.getElementById('comment').value.trim(),
+                total_sales: cashSales + cardSales,  // 日払いは合計売上に含まない
+                envelope_balance: cashSales - expense - dailyPayment,  // 日払いは封筒残金から引く
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            // バリデーション
+            if (!formData.date || !formData.store_id || !formData.staff_name) {
+                showToast('日付、店舗、スタッフ名を入力してください', 'error');
+                return;
+            }
+
+            // 重複チェック
+            const existingIndex = salesData.findIndex(item => 
+                item.date === formData.date && item.store_id === formData.store_id
+            );
+
+            if (existingIndex !== -1) {
+                showToast('その日は常に登録済なのでできません', 'error');
+                return;
+            }
+
+            // 確認チェックボックスモーダルを表示
+            showConfirmationModal(formData);
+        }
+
+        // フォームクリア
+        function clearForm() {
+            document.getElementById('staff_name').value = '';
+            document.getElementById('cash_sales').value = '';
+            document.getElementById('card_sales').value = '';
+            document.getElementById('expense').value = '';
+            document.getElementById('liquor_delivery').value = '';
+            document.getElementById('daily_payment').value = '';
+            document.getElementById('comment').value = '';
+            calculateValues();
+        }
+
+        // 分析チャートの更新
+        function updateAnalysisChart() {
+            const storeId = document.getElementById('analysisStore').value;
+            const staffName = document.getElementById('analysisStaff').value;
+            const fromDate = document.getElementById('analysisFromDate').value;
+            const toDate = document.getElementById('analysisToDate').value;
+
+            let filteredData = salesData;
+
+            if (storeId) {
+                filteredData = filteredData.filter(item => item.store_id === storeId);
+            }
+
+            if (staffName) {
+                filteredData = filteredData.filter(item => item.staff_name === staffName);
+            }
+
+            if (fromDate) {
+                filteredData = filteredData.filter(item => item.date >= fromDate);
+            }
+
+            if (toDate) {
+                filteredData = filteredData.filter(item => item.date <= toDate);
+            }
+
+            // 日付順にソート
+            filteredData.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // 予算ラインの計算
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            const budgetKey = `${storeId}_${currentMonth}`;
+            const monthlyBudget = budgetData[budgetKey]?.amount || 0;
+            const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+            const dailyBudget = monthlyBudget / daysInMonth;
+
+            const ctx = document.getElementById('analysisChart').getContext('2d');
+
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            const datasets = [{
+                label: staffName ? `${staffName}の売上` : '売上',
+                data: filteredData.map(item => item.total_sales),
+                borderColor: 'rgb(99, 102, 241)',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                tension: 0.1,
+                fill: false
+            }, {
+                label: '経費',
+                data: filteredData.map(item => item.expense),
+                borderColor: 'rgb(239, 68, 68)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.1,
+                fill: false
+            }];
+
+            // 予算ラインを追加（予算が設定されている場合）
+            if (monthlyBudget > 0) {
+                datasets.push({
+                    label: '日別予算目標',
+                    data: filteredData.map(() => dailyBudget),
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    borderDash: [5, 5],
+                    tension: 0,
+                    fill: false
+                });
+            }
+
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: filteredData.map(item => item.date),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '¥' + formatNumber(value);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+
+            // スタッフ選択を更新
+            updateStaffOptions();
+            // 月内進捗チャートも更新
+            updateComparisonChart();
+        }
+
+        // 月内進捗チャートの更新
+        function updateComparisonChart() {
+            const storeId = document.getElementById('analysisStore').value;
+            const staffName = document.getElementById('analysisStaff').value;
+
+            let filteredData = salesData;
+
+            if (storeId) {
+                filteredData = filteredData.filter(item => item.store_id === storeId);
+            }
+
+            if (staffName) {
+                filteredData = filteredData.filter(item => item.staff_name === staffName);
+            }
+
+            // 当月のデータのみ
+            const currentDate = new Date();
+            const currentMonth = currentDate.getMonth();
+            const currentYear = currentDate.getFullYear();
+
+            const currentMonthData = filteredData.filter(item => {
+                const itemDate = new Date(item.date);
+                return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
+            });
+
+            // 累積売上を計算
+            currentMonthData.sort((a, b) => new Date(a.date) - new Date(b.date));
+            let cumulativeSales = 0;
+            const cumulativeData = currentMonthData.map(item => {
+                cumulativeSales += item.total_sales;
+                return cumulativeSales;
+            });
+
+            // 予算の累積目標ライン
+            const currentMonthStr = new Date().toISOString().slice(0, 7);
+            const budgetKey = `${storeId}_${currentMonthStr}`;
+            const monthlyBudget = budgetData[budgetKey]?.amount || 0;
+            
+            const today = new Date().getDate();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const dailyBudget = monthlyBudget / daysInMonth;
+            
+            const budgetLine = currentMonthData.map((_, index) => dailyBudget * (index + 1));
+
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+
+            if (comparisonChart) {
+                comparisonChart.destroy();
+            }
+
+            const datasets = [{
+                label: staffName ? `${staffName}の累積売上` : '累積売上',
+                data: cumulativeData,
+                borderColor: 'rgb(99, 102, 241)',
+                backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                tension: 0.1,
+                fill: true
+            }];
+
+            // 予算ラインを追加（予算が設定されている場合）
+            if (monthlyBudget > 0) {
+                datasets.push({
+                    label: '累積予算目標',
+                    data: budgetLine,
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    borderDash: [5, 5],
+                    tension: 0,
+                    fill: false
+                });
+            }
+
+            comparisonChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: currentMonthData.map(item => new Date(item.date).getDate() + '日'),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '¥' + formatNumber(value);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+        }
+
+        // スタッフ選択オプションの更新
+        function updateStaffOptions() {
+            const storeId = document.getElementById('analysisStore').value;
+            const staffSelect = document.getElementById('analysisStaff');
+            
+            // 現在の選択値を保存
+            const currentValue = staffSelect.value;
+            
+            // オプションをクリア
+            staffSelect.innerHTML = '<option value="">全スタッフ</option>';
+            
+            // ユニークなスタッフ名を取得
+            let filteredData = salesData;
+            if (storeId) {
+                filteredData = filteredData.filter(item => item.store_id === storeId);
+            }
+            
+            const staffNames = [...new Set(filteredData.map(item => item.staff_name).filter(name => name))];
+            staffNames.sort();
+            
+            staffNames.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                staffSelect.appendChild(option);
+            });
+            
+            // 以前の選択値を復元
+            if (currentValue && staffNames.includes(currentValue)) {
+                staffSelect.value = currentValue;
+            }
+        }
+
+        // ランキングの更新
+        function updateRanking() {
+            const fromDate = document.getElementById('rankingFromDate').value;
+            const toDate = document.getElementById('rankingToDate').value;
+
+            let filteredData = salesData;
+
+            if (fromDate) {
+                filteredData = filteredData.filter(item => item.date >= fromDate);
+            }
+
+            if (toDate) {
+                filteredData = filteredData.filter(item => item.date <= toDate);
+            }
+
+            const storeRanking = {};
+
+            filteredData.forEach(item => {
+                if (!storeRanking[item.store_id]) {
+                    storeRanking[item.store_id] = {
+                        totalSales: 0,
+                        count: 0
+                    };
+                }
+                storeRanking[item.store_id].totalSales += item.total_sales;
+                storeRanking[item.store_id].count++;
+            });
+
+            const ranking = Object.entries(storeRanking)
+                .map(([storeId, data]) => {
+                    // 予算を取得（月ベース）
+                    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+                    const budgetKey = `${storeId}_${currentMonth}`;
+                    const budget = budgetData[budgetKey]?.amount || 0;
+                    const achievement = budget > 0 ? Math.round((data.totalSales / budget) * 100) : 0;
+
+                    return {
+                        storeId,
+                        storeName: stores[storeId] || storeData[storeId] || storeId,
+                        totalSales: data.totalSales,
+                        count: data.count,
+                        budget: budget,
+                        achievement: achievement
+                    };
+                })
+                .sort((a, b) => b.totalSales - a.totalSales);
+
+            const rankingList = document.getElementById('rankingList');
+            rankingList.innerHTML = '';
+
+            if (ranking.length === 0) {
+                rankingList.innerHTML = '<div class="text-center text-gray-500 py-8">データがありません</div>';
+                return;
+            }
+
+            ranking.forEach((item, index) => {
+                const rank = index + 1;
+                let rankIcon = '';
+                let rankColor = '';
+
+                if (rank === 1) {
+                    rankIcon = '🥇';
+                    rankColor = 'bg-yellow-100 border-yellow-400';
+                } else if (rank === 2) {
+                    rankIcon = '🥈';
+                    rankColor = 'bg-gray-100 border-gray-400';
+                } else if (rank === 3) {
+                    rankIcon = '🥉';
+                    rankColor = 'bg-orange-100 border-orange-400';
+                } else {
+                    rankIcon = `${rank}位`;
+                    rankColor = 'bg-white border-gray-200';
+                }
+
+                const rankingItem = document.createElement('div');
+                rankingItem.className = `ranking-item p-4 rounded-lg border-2 ${rankColor} transition-all duration-300`;
+                const achievementColor = item.achievement >= 100 ? 'text-green-600' : item.achievement >= 80 ? 'text-yellow-600' : 'text-red-600';
+                const budgetText = item.budget > 0 ? `予算: ¥${formatNumber(item.budget)}` : '予算未設定';
+                const achievementText = item.budget > 0 ? `${item.achievement}%` : 'N/A';
+
+                rankingItem.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="text-2xl font-bold">${rankIcon}</div>
+                            <div>
+                                <div class="text-lg font-semibold text-gray-800">${item.storeName}</div>
+                                <div class="text-sm text-gray-600">${item.count}件のデータ</div>
+                                <div class="text-xs text-gray-500">${budgetText}</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-purple-600">¥${formatNumber(item.totalSales)}</div>
+                            <div class="text-sm text-gray-500">総売上</div>
+                            <div class="text-lg font-bold ${achievementColor}">達成率: ${achievementText}</div>
+                        </div>
+                    </div>
+                `;
+                rankingList.appendChild(rankingItem);
+            });
+        }
+
+        // 履歴テーブルの更新
+        function updateHistoryTable() {
+            const storeId = document.getElementById('historyStore').value;
+            const fromDate = document.getElementById('historyFromDate').value;
+            const toDate = document.getElementById('historyToDate').value;
+            const modifiedOnly = document.getElementById('modifiedOnly').checked;
+
+            let filteredData = salesData;
+
+            if (storeId) {
+                filteredData = filteredData.filter(item => item.store_id === storeId);
+            }
+
+            if (fromDate) {
+                filteredData = filteredData.filter(item => item.date >= fromDate);
+            }
+
+            if (toDate) {
+                filteredData = filteredData.filter(item => item.date <= toDate);
+            }
+
+            if (modifiedOnly) {
+                filteredData = filteredData.filter(item => 
+                    editHistory.some(edit => edit.originalId === item.id)
+                );
+            }
+
+            // 日付順にソート（新しい順）
+            filteredData.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '';
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-gray-500 py-8">データがありません</td></tr>';
+                return;
+            }
+
+            filteredData.forEach(item => {
+                const isModified = editHistory.some(edit => edit.originalId === item.id);
+                const row = document.createElement('tr');
+                row.className = isModified ? 'edit-row' : 'hover:bg-gray-50';
+                
+                // 編集者情報を取得
+                const editorInfo = getEditorInfo(item.id);
+                
+                row.innerHTML = `
+                    <td class="px-4 py-3 border-b">${item.date}</td>
+                    <td class="px-4 py-3 border-b">${stores[item.store_id] || storeData[item.store_id] || item.store_id}</td>
+                    <td class="px-4 py-3 border-b ${isModified ? 'modified-text' : ''}">¥${formatNumber(item.cash_sales)}</td>
+                    <td class="px-4 py-3 border-b ${isModified ? 'modified-text' : ''}">¥${formatNumber(item.card_sales)}</td>
+                    <td class="px-4 py-3 border-b ${isModified ? 'modified-text' : ''}">¥${formatNumber(item.expense)}</td>
+                    <td class="px-4 py-3 border-b ${isModified ? 'modified-text' : ''}">¥${formatNumber(item.total_sales)}</td>
+                    <td class="px-4 py-3 border-b ${isModified ? 'modified-text' : ''}">¥${formatNumber(item.envelope_balance)}</td>
+                    <td class="px-4 py-3 border-b">
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            editorInfo.editor ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'
+                        }">
+                            ${editorInfo.editor || '未編集'}
+                        </span>
+                        ${editorInfo.editDate ? `<div class="text-xs text-gray-500 mt-1">${editorInfo.editDate}</div>` : ''}
+                    </td>
+                    <td class="px-4 py-3 border-b">
+                        <button onclick="openEditModal('${item.id}')" class="text-blue-600 hover:text-blue-800 font-medium">
+                            編集
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 編集モーダルを開く
+        function openEditModal(id) {
+            const item = salesData.find(data => data.id === id);
+            if (!item) return;
+
+            document.getElementById('editId').value = id;
+            document.getElementById('editCashSales').value = item.cash_sales;
+            document.getElementById('editCardSales').value = item.card_sales;
+            document.getElementById('editExpense').value = item.expense;
+            document.getElementById('editLiquorDelivery').value = item.liquor_delivery;
+            document.getElementById('editEditorName').value = '';
+
+            document.getElementById('editModal').classList.remove('hidden');
+            document.getElementById('editModal').classList.add('flex');
+        }
+
+        // 編集モーダルを閉じる
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+            document.getElementById('editModal').classList.remove('flex');
+        }
+
+        // 編集を保存
+        function saveEdit() {
+            const id = document.getElementById('editId').value;
+            const item = salesData.find(data => data.id === id);
+            if (!item) return;
+
+            const editorName = document.getElementById('editEditorName').value.trim();
+            if (!editorName) {
+                showToast('編集者名を入力してください', 'error');
+                return;
+            }
+
+            const originalItem = { ...item };
+            
+            item.cash_sales = parseInt(document.getElementById('editCashSales').value) || 0;
+            item.card_sales = parseInt(document.getElementById('editCardSales').value) || 0;
+            item.expense = parseInt(document.getElementById('editExpense').value) || 0;
+            item.liquor_delivery = parseInt(document.getElementById('editLiquorDelivery').value) || 0;
+            item.total_sales = item.cash_sales + item.card_sales;
+            item.envelope_balance = item.cash_sales - item.expense;
+            item.updated_at = new Date().toISOString();
+
+            // 編集履歴を記録
+            editHistory.push({
+                originalId: id,
+                originalData: originalItem,
+                newData: { ...item },
+                editedAt: new Date().toISOString(),
+                editor: editorName
+            });
+
+            saveData();
+            closeEditModal();
+            updateAllViews();
+            showToast('データを更新しました', 'success');
+        }
+
+        // 全ビューの更新
+        function updateAllViews() {
+            updateAnalysisChart();
+            updateRanking();
+            updateHistoryTable();
+            updateHeadquartersView();
+        }
+
+        // データの保存
+        function saveData() {
+            localStorage.setItem('salesData', JSON.stringify(salesData));
+            localStorage.setItem('editHistory', JSON.stringify(editHistory));
+        }
+
+        // 動的経費項目の配列
+        let dynamicExpenses = [];
+
+        // 動的項目追加機能
+        function addDynamicExpense() {
+            const name = document.getElementById('newExpenseName').value.trim();
+            const type = document.getElementById('newExpenseType').value;
+            const amount = parseInt(document.getElementById('newExpenseAmount').value) || 0;
+
+            if (!name) {
+                showToast('項目名を入力してください', 'error');
+                return;
+            }
+
+            const expense = {
+                id: Date.now().toString(),
+                name: name,
+                type: type,  // 'expense' または 'income'
+                amount: amount
+            };
+
+            dynamicExpenses.push(expense);
+            updateDynamicExpensesList();
+
+            // フォームクリア
+            document.getElementById('newExpenseName').value = '';
+            document.getElementById('newExpenseAmount').value = '';
+
+            const typeText = type === 'income' ? '収入項目' : '支出項目';
+            showToast(`${typeText}を追加しました`, 'success');
+        }
+
+        // 動的項目リストの更新
+        function updateDynamicExpensesList() {
+            const container = document.getElementById('dynamicExpensesList');
+            container.innerHTML = '';
+
+            dynamicExpenses.forEach(expense => {
+                const div = document.createElement('div');
+                const bgColor = expense.type === 'income' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+                const textColor = expense.type === 'income' ? 'text-green-800' : 'text-red-800';
+                const borderColor = expense.type === 'income' ? 'border-green-300' : 'border-red-300';
+                const typeIcon = expense.type === 'income' ? '➕' : '➖';
+                
+                div.className = `flex items-center space-x-3 p-3 ${bgColor} rounded-lg border`;
+                div.innerHTML = `
+                    <div class="w-8 text-center">
+                        <span class="text-lg">${typeIcon}</span>
+                    </div>
+                    <div class="flex-1">
+                        <span class="font-medium ${textColor}">${expense.name}</span>
+                    </div>
+                    <div class="w-32">
+                        <input type="number" value="${expense.amount}" 
+                               onchange="updateDynamicExpenseAmount('${expense.id}', this.value)"
+                               class="w-full p-2 border ${borderColor} rounded text-right">
+                    </div>
+                    <button onclick="removeDynamicExpense('${expense.id}')" 
+                            class="text-red-600 hover:text-red-800 font-bold text-lg">
+                        ✕
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // 動的経費項目の金額更新
+        function updateDynamicExpenseAmount(id, amount) {
+            const expense = dynamicExpenses.find(item => item.id === id);
+            if (expense) {
+                expense.amount = parseInt(amount) || 0;
+            }
+        }
+
+        // 動的経費項目の削除
+        function removeDynamicExpense(id) {
+            dynamicExpenses = dynamicExpenses.filter(item => item.id !== id);
+            updateDynamicExpensesList();
+            showToast('経費項目を削除しました', 'success');
+        }
+
+        // 純利益計算機能
+        function calculateProfit() {
+            const fromDate = document.getElementById('profitFromDate').value;
+            const toDate = document.getElementById('profitToDate').value;
+            const storeId = document.getElementById('profitStoreSelect').value;
+
+            if (!fromDate || !toDate) {
+                showToast('期間を選択してください', 'error');
+                return;
+            }
+
+            // フィルタリング
+            let filteredData = salesData.filter(item => {
+                return item.date >= fromDate && item.date <= toDate;
+            });
+
+            if (storeId) {
+                filteredData = filteredData.filter(item => item.store_id === storeId);
+            }
+
+            // 自動計算データ
+            const totalSales = filteredData.reduce((sum, item) => sum + (item.total_sales || 0), 0);
+            const totalExpenses = filteredData.reduce((sum, item) => sum + (item.expense || 0), 0);
+            const totalLiquorDelivery = filteredData.reduce((sum, item) => sum + (item.liquor_delivery || 0), 0);
+
+            // 自動入力欄に設定
+            document.getElementById('autoTotalSales').value = totalSales;
+            document.getElementById('autoExpenses').value = totalExpenses;
+            document.getElementById('autoLiquorDelivery').value = totalLiquorDelivery;
+
+            // 手動入力項目
+            const rent = parseInt(document.getElementById('rent').value) || 0;
+            const wifi = parseInt(document.getElementById('wifi').value) || 0;
+            const insurance = parseInt(document.getElementById('insurance').value) || 0;
+            const outsourcing = parseInt(document.getElementById('outsourcing').value) || 0;
+            const lease = parseInt(document.getElementById('lease').value) || 0;
+            const towels = parseInt(document.getElementById('towels').value) || 0;
+            const electricity = parseInt(document.getElementById('electricity').value) || 0;
+            const water = parseInt(document.getElementById('water').value) || 0;
+            const gas = parseInt(document.getElementById('gas').value) || 0;
+
+            // 動的項目の収入・支出を分離計算
+            const dynamicIncome = dynamicExpenses
+                .filter(item => item.type === 'income')
+                .reduce((sum, item) => sum + item.amount, 0);
+            const dynamicExpensesTotal = dynamicExpenses
+                .filter(item => item.type === 'expense')
+                .reduce((sum, item) => sum + item.amount, 0);
+
+            // 計算
+            const totalRevenue = totalSales + dynamicIncome;  // 売上 + 動的収入
+            const totalCosts = totalExpenses + rent + wifi + insurance + outsourcing + lease + 
+                             towels + electricity + water + gas + dynamicExpensesTotal;  // 固定支出 + 動的支出
+            const netProfit = totalRevenue - totalCosts;
+
+            // 結果表示
+            document.getElementById('totalRevenue').textContent = `¥${formatNumber(totalRevenue)}`;
+            document.getElementById('totalExpenses').textContent = `¥${formatNumber(totalCosts)}`;
+            document.getElementById('netProfit').textContent = `¥${formatNumber(netProfit)}`;
+            document.getElementById('netProfit').className = netProfit >= 0 ? 
+                'text-4xl font-bold text-green-800' : 'text-4xl font-bold text-red-800';
+
+            showToast('純利益を計算しました', 'success');
+        }
+
+        // 純利益計算結果をCSVエクスポート
+        function exportProfitCSV() {
+            const fromDate = document.getElementById('profitFromDate').value;
+            const toDate = document.getElementById('profitToDate').value;
+            const storeId = document.getElementById('profitStoreSelect').value;
+            
+            if (!fromDate || !toDate) {
+                showToast('まず計算を実行してください', 'error');
+                return;
+            }
+
+            const totalRevenue = document.getElementById('totalRevenue').textContent.replace(/[¥,]/g, '');
+            const totalExpenses = document.getElementById('totalExpenses').textContent.replace(/[¥,]/g, '');
+            const netProfit = document.getElementById('netProfit').textContent.replace(/[¥,]/g, '');
+
+            // 詳細経費の取得
+            const autoTotalSales = document.getElementById('autoTotalSales').value;
+            const autoExpenses = document.getElementById('autoExpenses').value;
+            const rent = document.getElementById('rent').value || 0;
+            const wifi = document.getElementById('wifi').value || 0;
+            const insurance = document.getElementById('insurance').value || 0;
+            const outsourcing = document.getElementById('outsourcing').value || 0;
+            const lease = document.getElementById('lease').value || 0;
+            const towels = document.getElementById('towels').value || 0;
+            const electricity = document.getElementById('electricity').value || 0;
+            const water = document.getElementById('water').value || 0;
+            const gas = document.getElementById('gas').value || 0;
+            let csvContent = [
+                ['純利益計算レポート'],
+                ['計算期間', `${fromDate} 〜 ${toDate}`],
+                ['対象店舗', storeId ? (stores[storeId] || storeId) : '全店舗'],
+                [''],
+                ['== 収入 =='],
+                ['合計売上高', autoTotalSales]
+            ];
+
+            // 動的収入項目を追加
+            const dynamicIncomeItems = dynamicExpenses.filter(item => item.type === 'income');
+            dynamicIncomeItems.forEach(item => {
+                csvContent.push([item.name + ' (追加収入)', item.amount]);
+            });
+
+            csvContent = csvContent.concat([
+                [''],
+                ['== 支出詳細 =='],
+                ['経費 (日報)', autoExpenses],
+                ['家賃', rent],
+                ['通信費 (Wi-Fi)', wifi],
+                ['保険料', insurance],
+                ['業務委託費', outsourcing],
+                ['リース (第一興商 等)', lease],
+                ['おしぼり', towels],
+                ['電気', electricity],
+                ['水道', water],
+                ['ガス', gas]
+            ]);
+
+            // 動的支出項目を追加
+            const dynamicExpenseItems = dynamicExpenses.filter(item => item.type === 'expense');
+            dynamicExpenseItems.forEach(item => {
+                csvContent.push([item.name + ' (追加支出)', item.amount]);
+            });
+
+            csvContent = csvContent.concat([
+                [''],
+                ['== 計算結果 =='],
+                ['総収入', totalRevenue],
+                ['総支出', totalExpenses],
+                ['純利益', netProfit],
+                [''],
+                ['計算日時', new Date().toLocaleString('ja-JP')]
+            ]);
+
+            const csvString = csvContent.map(row => row.join(',')).join('\n');
+
+            const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `純利益計算詳細_${fromDate}_${toDate}.csv`;
+            link.click();
+
+            showToast('CSVファイルをダウンロードしました', 'success');
+        }
+
+        // テストデータクリア機能
+        function clearTestData() {
+            localStorage.removeItem('salesData');
+            localStorage.removeItem('editHistory');
+            localStorage.removeItem('staffList');
+            localStorage.removeItem('stores');
+            localStorage.removeItem('storeData');
+            localStorage.removeItem('budgetData');
+            
+            // データ構造を初期化
+            salesData = [];
+            editHistory = [];
+            staffList = [];
+            stores = {};
+            storeData = {};
+            budgetData = {};
+            
+            updateAllViews();
+            showToast('テストデータをクリアしました', 'success');
+        }
+
+        // データの読み込み
+        function loadData() {
+            const savedSalesData = localStorage.getItem('salesData');
+            const savedEditHistory = localStorage.getItem('editHistory');
+
+            if (savedSalesData) {
+                salesData = JSON.parse(savedSalesData);
+            }
+
+            if (savedEditHistory) {
+                editHistory = JSON.parse(savedEditHistory);
+            }
+        }
+
+        // 編集者情報を取得
+        function getEditorInfo(itemId) {
+            const latestEdit = editHistory
+                .filter(edit => edit.originalId === itemId)
+                .sort((a, b) => new Date(b.editedAt) - new Date(a.editedAt))[0];
+            
+            if (latestEdit) {
+                return {
+                    editor: latestEdit.editor,
+                    editDate: new Date(latestEdit.editedAt).toLocaleDateString('ja-JP', {
+                        year: 'numeric',
+                        month: 'numeric',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })
+                };
+            }
+            
+            return { editor: null, editDate: null };
+        }
+
+        // 本部管理画面の更新
+        function updateHeadquartersView() {
+            // 統計情報の更新
+            updateHQStatistics();
+            
+            // 店舗パフォーマンスの更新
+            updateStorePerformance();
+            
+            // 月別トレンドチャートの更新
+            updateMonthlyTrendChart();
+            
+            // 詳細レポートの更新
+            updateHQDetailTable();
+            
+            // 店舗管理リスト更新
+            updateStoreManagementList();
+        }
+
+        // 本部管理ダッシュボードの更新
+        function updateHQDashboard() {
+            updateHQStatistics();
+            updateStorePerformance();
+            updateMonthlyTrendChart();
+            updateHQDetailTable();
+        }
+
+        // 本部管理認証初期化
+        function initializeHQAuth() {
+            // パスワードモーダルイベント
+            document.getElementById('cancelPasswordBtn').addEventListener('click', hidePasswordModal);
+            document.getElementById('submitPasswordBtn').addEventListener('click', verifyPassword);
+            document.getElementById('adminPassword').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    verifyPassword();
+                }
+            });
+        }
+
+        // 店舗管理初期化
+        function initializeStoreManagement() {
+            // ボタンイベント
+            document.getElementById('addStoreBtn').addEventListener('click', () => openStoreEditModal());
+            document.getElementById('cancelStoreEditBtn').addEventListener('click', closeStoreEditModal);
+            document.getElementById('storeEditForm').addEventListener('submit', saveStoreEdit);
+            document.getElementById('saveBudgetBtn').addEventListener('click', saveBudget);
+            
+            // ストアデータ読み込み
+            loadStoreData();
+        }
+
+        // パスワードモーダル表示
+        function showPasswordModal() {
+            document.getElementById('passwordModal').classList.remove('hidden');
+            document.getElementById('passwordModal').classList.add('flex');
+            document.getElementById('adminPassword').focus();
+        }
+
+        // パスワードモーダル非表示
+        function hidePasswordModal() {
+            document.getElementById('passwordModal').classList.add('hidden');
+            document.getElementById('passwordModal').classList.remove('flex');
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('passwordError').classList.add('hidden');
+        }
+
+        // パスワード験証
+        function verifyPassword() {
+            const password = document.getElementById('adminPassword').value;
+            const errorElement = document.getElementById('passwordError');
+            
+            if (password === 'admin') {
+                isHQAuthenticated = true;
+                hidePasswordModal();
+                
+                // タブをアクティブに
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                document.querySelector('[data-tab="headquarters"]').classList.add('active');
+                document.getElementById('headquarters').classList.add('active');
+                
+                // ロックアイコンを削除
+                document.querySelector('[data-tab="headquarters"]').classList.remove('locked-tab');
+                
+                updateHeadquartersView();
+                // 統計情報を明示的に初期化
+                setTimeout(() => {
+                    updateHQStatistics();
+                }, 100);
+                showToast('本部管理画面にアクセスしました', 'success');
+            } else {
+                errorElement.classList.remove('hidden');
+                document.getElementById('adminPassword').value = '';
+                document.getElementById('adminPassword').focus();
+            }
+        }
+
+        // ストアデータ読み込み
+        function loadStoreData() {
+            const savedStoreData = localStorage.getItem('storeData');
+            const savedBudgetData = localStorage.getItem('budgetData');
+            
+            if (savedStoreData) {
+                storeData = JSON.parse(savedStoreData);
+            } else {
+                // デフォルトストアデータ
+                storeData = {
+                    'store_001': '本店',
+                    'store_002': '支店A',
+                    'store_003': '支店B',
+                    'store_004': '支店C'
+                };
+                localStorage.setItem('storeData', JSON.stringify(storeData));
+            }
+            
+            // storesオブジェクトをstoreDataと同期
+            stores = { ...storeData };
+            
+            if (savedBudgetData) {
+                budgetData = JSON.parse(savedBudgetData);
+            }
+            
+            updateStoreSelects();
+        }
+
+        // ストアセレクトボックス更新
+        function updateStoreSelects() {
+            const selects = [
+                'store_id', 'analysisStore', 'historyStore', 'hqStoreSelect', 'budgetStoreSelect'
+            ];
+            
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    const currentValue = select.value;
+                    const options = select.innerHTML.split('</option>')[0] + '</option>';
+                    
+                    select.innerHTML = options;
+                    
+                    Object.keys(storeData).forEach(storeId => {
+                        const option = document.createElement('option');
+                        option.value = storeId;
+                        option.textContent = storeData[storeId];
+                        select.appendChild(option);
+                    });
+                    
+                    if (currentValue) {
+                        select.value = currentValue;
+                    }
+                }
+            });
+        }
+
+        // 店舗リスト更新
+        function updateStoreManagementList() {
+            const list = document.getElementById('storeManagementList');
+            
+            list.innerHTML = Object.keys(storeData).map(storeId => {
+                return `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <div>
+                                <div class="font-medium text-gray-800">${storeData[storeId]}</div>
+                                <div class="text-sm text-gray-500">${storeId}</div>
+                            </div>
+                        </div>
+                        <button onclick="openStoreEditModal('${storeId}')" class="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                            編集
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 店舗編集モーダルを開く
+        function openStoreEditModal(storeId = null) {
+            const modal = document.getElementById('storeEditModal');
+            const title = document.getElementById('storeEditModalTitle');
+            const editStoreId = document.getElementById('editStoreId');
+            const editStoreIdInput = document.getElementById('editStoreIdInput');
+            const editStoreName = document.getElementById('editStoreName');
+            
+            if (storeId) {
+                // 編集モード
+                title.textContent = '店舗編集';
+                editStoreId.value = storeId;
+                editStoreIdInput.value = storeId;
+                editStoreIdInput.readOnly = true;
+                editStoreName.value = storeData[storeId];
+            } else {
+                // 新規モード
+                title.textContent = '新規店舗追加';
+                editStoreId.value = '';
+                editStoreIdInput.value = '';
+                editStoreIdInput.readOnly = false;
+                editStoreName.value = '';
+            }
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        // 店舗編集モーダルを閉じる
+        function closeStoreEditModal() {
+            document.getElementById('storeEditModal').classList.add('hidden');
+            document.getElementById('storeEditModal').classList.remove('flex');
+        }
+
+        // 店舗編集保存
+        function saveStoreEdit(e) {
+            e.preventDefault();
+            
+            const originalStoreId = document.getElementById('editStoreId').value;
+            const newStoreId = document.getElementById('editStoreIdInput').value.trim();
+            const storeName = document.getElementById('editStoreName').value.trim();
+            
+            if (!newStoreId || !storeName) {
+                showToast('店舗IDと店舗名を入力してください', 'error');
+                return;
+            }
+            
+            if (originalStoreId) {
+                // 編集モード
+                storeData[originalStoreId] = storeName;
+                stores[originalStoreId] = storeName;
+                showToast('店舗情報を更新しました', 'success');
+            } else {
+                // 新規モード
+                if (storeData[newStoreId]) {
+                    showToast('この店舗IDは既に存在します', 'error');
+                    return;
+                }
+                storeData[newStoreId] = storeName;
+                stores[newStoreId] = storeName;
+                showToast('新しい店舗を追加しました', 'success');
+            }
+            
+            localStorage.setItem('storeData', JSON.stringify(storeData));
+            updateStoreSelects();
+            updateStoreManagementList();
+            updateAllViews();
+            closeStoreEditModal();
+        }
+
+        // 予算保存
+        function saveBudget() {
+            const storeId = document.getElementById('budgetStoreSelect').value;
+            const amount = parseInt(document.getElementById('budgetAmount').value);
+            const month = document.getElementById('budgetMonth').value;
+            
+            if (!storeId || !amount || !month) {
+                showToast('全ての項目を入力してください', 'error');
+                return;
+            }
+            
+            const budgetKey = `${storeId}_${month}`;
+            budgetData[budgetKey] = {
+                storeId: storeId,
+                amount: amount,
+                month: month,
+                createdAt: new Date().toISOString()
+            };
+            
+            localStorage.setItem('budgetData', JSON.stringify(budgetData));
+            
+            document.getElementById('budgetStoreSelect').value = '';
+            document.getElementById('budgetAmount').value = '';
+            document.getElementById('budgetMonth').value = '';
+            
+            showToast('予算を保存しました', 'success');
+        }
+
+        // 本部統計情報の更新
+        function updateHQStatistics() {
+            const storeId = document.getElementById('hqStoreSelect').value;
+            const fromDate = document.getElementById('hqFromDate').value;
+            const toDate = document.getElementById('hqToDate').value;
+
+            console.log('updateHQStatistics called:', { storeId, fromDate, toDate });
+
+            let filteredData = salesData;
+
+            if (storeId) {
+                filteredData = filteredData.filter(item => item.store_id === storeId);
+            }
+
+            if (fromDate) {
+                filteredData = filteredData.filter(item => item.date >= fromDate);
+            }
+
+            if (toDate) {
+                filteredData = filteredData.filter(item => item.date <= toDate);
+            }
+
+            console.log('Filtered data:', filteredData);
+
+            const totalSales = filteredData.reduce((sum, item) => sum + item.total_sales, 0);
+            const avgDailySales = filteredData.length > 0 ? totalSales / filteredData.length : 0;
+            
+            // 稼働店舗数の算出（フィルター条件により異なる）
+            let activeStores;
+            if (storeId) {
+                // 特定の店舗が選択されている場合
+                activeStores = filteredData.length > 0 ? 1 : 0;
+            } else {
+                // 全店舗の場合
+                activeStores = new Set(filteredData.map(item => item.store_id)).size;
+            }
+
+            console.log('Statistics:', { totalSales, avgDailySales, activeStores });
+
+            // 統計カードに更新アニメーション
+            const statsCards = ['totalSalesAmount', 'avgDailySales', 'activeStoreCount'];
+            statsCards.forEach(id => {
+                const element = document.getElementById(id);
+                element.style.transform = 'scale(1.05)';
+                element.style.transition = 'transform 0.2s ease';
+            });
+
+            document.getElementById('totalSalesAmount').textContent = `¥${formatNumber(totalSales)}`;
+            document.getElementById('avgDailySales').textContent = `¥${formatNumber(Math.round(avgDailySales))}`;
+            document.getElementById('activeStoreCount').textContent = activeStores;
+
+            // アニメーション元に戻す
+            setTimeout(() => {
+                statsCards.forEach(id => {
+                    const element = document.getElementById(id);
+                    element.style.transform = 'scale(1)';
+                });
+            }, 200);
+        }
+
+        // 店舗パフォーマンスの更新
+        function updateStorePerformance() {
+            const storeId = document.getElementById('hqStoreSelect').value;
+            const fromDate = document.getElementById('hqFromDate').value;
+            const toDate = document.getElementById('hqToDate').value;
+
+            let filteredData = salesData;
+
+            if (fromDate) {
+                filteredData = filteredData.filter(item => item.date >= fromDate);
+            }
+
+            if (toDate) {
+                filteredData = filteredData.filter(item => item.date <= toDate);
+            }
+
+            const performanceData = {};
+            filteredData.forEach(item => {
+                if (!performanceData[item.store_id]) {
+                    performanceData[item.store_id] = {
+                        totalSales: 0,
+                        count: 0
+                    };
+                }
+                performanceData[item.store_id].totalSales += item.total_sales;
+                performanceData[item.store_id].count++;
+            });
+
+            const performanceList = document.getElementById('storePerformanceList');
+            
+            if (Object.keys(performanceData).length === 0) {
+                performanceList.innerHTML = '<div class="text-center text-gray-500 py-4">データがありません</div>';
+                return;
+            }
+
+            performanceList.innerHTML = Object.entries(performanceData).map(([storeId, data]) => {
+                const storeName = stores[storeId] || storeData[storeId] || storeId;
+                const avgSales = data.count > 0 ? data.totalSales / data.count : 0;
+                const growth = Math.floor(Math.random() * 20) - 10; // サンプル成長率
+                const status = growth >= 0 ? 'good' : 'warning';
+                
+                return `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-3 h-3 rounded-full ${status === 'good' ? 'bg-green-500' : 'bg-orange-500'}"></div>
+                            <div>
+                                <div class="font-medium text-gray-800">${storeName}</div>
+                                <div class="text-sm text-gray-500">${data.count}件のデータ</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-semibold text-gray-800">¥${formatNumber(data.totalSales)}</div>
+                            <div class="text-sm ${growth >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                ${growth >= 0 ? '+' : ''}${growth}%
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 月別トレンドチャートの更新（前月対比）
+        function updateMonthlyTrendChart() {
+            const ctx = document.getElementById('monthlyTrendChart');
+            if (!ctx) return;
+
+            if (monthlyTrendChart) {
+                monthlyTrendChart.destroy();
+            }
+
+            const storeId = document.getElementById('hqStoreSelect').value;
+            let filteredData = salesData;
+
+            if (storeId) {
+                filteredData = filteredData.filter(item => item.store_id === storeId);
+            }
+
+            // 月別データの集計
+            const monthlyData = {};
+            filteredData.forEach(item => {
+                const monthKey = item.date.substring(0, 7); // YYYY-MM
+                if (!monthlyData[monthKey]) {
+                    monthlyData[monthKey] = { sales: 0, count: 0 };
+                }
+                monthlyData[monthKey].sales += item.total_sales;
+                monthlyData[monthKey].count++;
+            });
+
+            const sortedMonths = Object.keys(monthlyData).sort();
+            const currentMonthData = sortedMonths.map(month => monthlyData[month].sales);
+            
+            // 前月対比の計算
+            const previousMonthData = [0, ...currentMonthData.slice(0, -1)];
+            const comparisonData = currentMonthData.map((current, index) => {
+                const previous = previousMonthData[index];
+                return previous > 0 ? ((current - previous) / previous) * 100 : 0;
+            });
+
+            monthlyTrendChart = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: sortedMonths,
+                    datasets: [{
+                        label: '売上',
+                        data: currentMonthData,
+                        borderColor: 'rgb(99, 102, 241)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.1,
+                        yAxisID: 'y'
+                    }, {
+                        label: '前月対比(%)',
+                        data: comparisonData,
+                        borderColor: 'rgb(34, 197, 94)',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.1,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '¥' + formatNumber(value);
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+        }
+
+        // 詳細レポートテーブルの更新
+        function updateHQDetailTable() {
+            const storeId = document.getElementById('hqStoreSelect').value;
+            const fromDate = document.getElementById('hqFromDate').value;
+            const toDate = document.getElementById('hqToDate').value;
+
+            let filteredData = salesData;
+
+            if (storeId) {
+                filteredData = filteredData.filter(item => item.store_id === storeId);
+            }
+
+            if (fromDate) {
+                filteredData = filteredData.filter(item => item.date >= fromDate);
+            }
+
+            if (toDate) {
+                filteredData = filteredData.filter(item => item.date <= toDate);
+            }
+
+            filteredData.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const tbody = document.getElementById('hqDetailTableBody');
+            
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-500 py-8">データがありません</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filteredData.map(item => {
+                const profit = item.total_sales - item.expense;
+                const achievement = Math.floor(Math.random() * 50) + 75; // サンプル達成率
+                const achievementColor = achievement >= 100 ? 'text-green-600' : 'text-red-600';
+                
+                return `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="px-4 py-3">${item.date}</td>
+                        <td class="px-4 py-3">${stores[item.store_id] || storeData[item.store_id] || item.store_id}</td>
+                        <td class="px-4 py-3">¥${formatNumber(item.total_sales)}</td>
+                        <td class="px-4 py-3">¥${formatNumber(item.expense)}</td>
+                        <td class="px-4 py-3 font-semibold">¥${formatNumber(profit)}</td>
+                        <td class="px-4 py-3 font-semibold ${achievementColor}">${achievement}%</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 数値フォーマット
+        function formatNumber(num) {
+            return num.toLocaleString('ja-JP');
+        }
+
+        // 更新ボタンのローディング表示
+        function showUpdateLoading() {
+            document.getElementById('updateBtnText').classList.add('hidden');
+            document.getElementById('updateBtnLoading').classList.remove('hidden');
+            document.getElementById('hqUpdateBtn').disabled = true;
+        }
+
+        // 更新ボタンのローディング非表示
+        function hideUpdateLoading() {
+            document.getElementById('updateBtnText').classList.remove('hidden');
+            document.getElementById('updateBtnLoading').classList.add('hidden');
+            document.getElementById('hqUpdateBtn').disabled = false;
+        }
+
+        // 確認モーダル初期化
+        function initializeConfirmationModal() {
+            document.getElementById('cancelConfirmBtn').addEventListener('click', hideConfirmationModal);
+            document.getElementById('finalSubmitBtn').addEventListener('click', finalSubmit);
+            
+            // チェックボックスの変更を監視
+            const checkboxes = ['checkDate', 'checkStore', 'checkSales', 'checkExpense', 'checkTotal'];
+            checkboxes.forEach(id => {
+                document.getElementById(id).addEventListener('change', updateSubmitButton);
+            });
+        }
+
+        // 確認モーダル表示
+        function showConfirmationModal(formData) {
+            // 登録内容を表示
+            document.getElementById('confirmDate').textContent = formData.date;
+            document.getElementById('confirmStore').textContent = stores[formData.store_id] || storeData[formData.store_id] || formData.store_id;
+            document.getElementById('confirmStaff').textContent = formData.staff_name;
+            document.getElementById('confirmCash').textContent = `¥${formatNumber(formData.cash_sales)}`;
+            document.getElementById('confirmCard').textContent = `¥${formatNumber(formData.card_sales)}`;
+            document.getElementById('confirmExpense').textContent = `¥${formatNumber(formData.expense)}`;
+            document.getElementById('confirmLiquor').textContent = `¥${formatNumber(formData.liquor_delivery)}`;
+            document.getElementById('confirmTotal').textContent = `¥${formatNumber(formData.total_sales)}`;
+            document.getElementById('confirmBalance').textContent = `¥${formatNumber(formData.envelope_balance)}`;
+            
+            // チェックボックスをリセット
+            const checkboxes = ['checkDate', 'checkStore', 'checkSales', 'checkExpense', 'checkTotal'];
+            checkboxes.forEach(id => {
+                document.getElementById(id).checked = false;
+            });
+            
+            // 登録ボタンを無効化
+            updateSubmitButton();
+            
+            // フォームデータを一時保存
+            window.tempFormData = formData;
+            
+            // モーダル表示
+            document.getElementById('confirmationModal').classList.remove('hidden');
+            document.getElementById('confirmationModal').classList.add('flex');
+        }
+
+        // 確認モーダル非表示
+        function hideConfirmationModal() {
+            document.getElementById('confirmationModal').classList.add('hidden');
+            document.getElementById('confirmationModal').classList.remove('flex');
+            window.tempFormData = null;
+        }
+
+        // 登録ボタンの状態更新
+        function updateSubmitButton() {
+            const checkboxes = ['checkDate', 'checkStore', 'checkSales', 'checkExpense', 'checkTotal'];
+            const allChecked = checkboxes.every(id => document.getElementById(id).checked);
+            
+            const submitBtn = document.getElementById('finalSubmitBtn');
+            if (allChecked) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // 最終登録実行
+        function finalSubmit() {
+            if (!window.tempFormData) return;
+            
+            salesData.push(window.tempFormData);
+            saveData();
+            clearForm();
+            updateAllViews();
+            hideConfirmationModal();
+            showToast('売上データを登録しました', 'success');
+        }
+
+        // トースト通知
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast px-6 py-4 rounded-lg shadow-lg text-white font-medium ${
+                type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            }`;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // モーダルの外側クリックで閉じる
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+    </script>
+</body>
+</html>
