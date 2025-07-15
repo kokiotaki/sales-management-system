@@ -13,6 +13,11 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
     <style>
         body {
             font-family: 'Noto Sans JP', sans-serif;
@@ -1287,7 +1292,7 @@
         let stores = {};
 
         // 初期化
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             initializeFlatpickr();
             initializeCalculation();
             initializeTabSwitching();
@@ -1297,8 +1302,12 @@
             initializeStoreManagement();
             initializeConfirmationModal();
             initializeClosedDayManagement();
-            loadData();
-            loadClosedDaysData();
+            
+            // Firebase からデータを読み込み
+            await loadData();
+            await loadStoreData();
+            await loadClosedDaysData();
+            
             updateAllViews();
             updateClosedDaysList();
             
@@ -1638,7 +1647,7 @@
         }
 
         // 売上データの送信
-        function submitSalesData() {
+        async function submitSalesData() {
             // ローディング状態開始
             const submitBtn = document.getElementById('submitBtn');
             const submitBtnText = document.getElementById('submitBtnText');
@@ -2496,7 +2505,7 @@
         }
 
         // 編集を保存
-        function saveEdit() {
+        async function saveEdit() {
             const id = document.getElementById('editId').value;
             const item = salesData.find(data => data.id === id);
             if (!item) return;
@@ -2526,10 +2535,10 @@
                 editor: editorName
             });
 
-            saveData();
-            closeEditModal();
-            updateAllViews();
-            showToast('データを更新しました', 'success');
+                    await saveData();
+        closeEditModal();
+        updateAllViews();
+        showToast('データを更新しました', 'success');
         }
 
         // 全ビューの更新
@@ -2541,9 +2550,18 @@
         }
 
         // データの保存
-        function saveData() {
-            localStorage.setItem('salesData', JSON.stringify(salesData));
-            localStorage.setItem('editHistory', JSON.stringify(editHistory));
+        async function saveData() {
+            try {
+                await FirebaseHelper.saveSalesData(salesData);
+                await FirebaseHelper.saveEditHistory(editHistory);
+                console.log('Data saved to Firebase');
+            } catch (error) {
+                console.error('Error saving data to Firebase:', error);
+                showToast('データの保存に失敗しました', 'error');
+                // フォールバック: localStorage に保存
+                localStorage.setItem('salesData', JSON.stringify(salesData));
+                localStorage.setItem('editHistory', JSON.stringify(editHistory));
+            }
         }
 
         // 動的経費項目の配列
@@ -2790,7 +2808,16 @@
         }
 
         // テストデータクリア機能
-        function clearTestData() {
+        async function clearTestData() {
+            try {
+                await FirebaseHelper.clearAllData();
+                showToast('Firebaseのデータをクリアしました', 'success');
+            } catch (error) {
+                console.error('Error clearing Firebase data:', error);
+                showToast('Firebaseのデータクリアに失敗しました', 'error');
+            }
+            
+            // ローカルストレージもクリア
             localStorage.removeItem('salesData');
             localStorage.removeItem('editHistory');
             localStorage.removeItem('staffList');
@@ -2825,16 +2852,23 @@
         }
 
         // データの読み込み
-        function loadData() {
-            const savedSalesData = localStorage.getItem('salesData');
-            const savedEditHistory = localStorage.getItem('editHistory');
-
-            if (savedSalesData) {
-                salesData = JSON.parse(savedSalesData);
-            }
-
-            if (savedEditHistory) {
-                editHistory = JSON.parse(savedEditHistory);
+        async function loadData() {
+            try {
+                salesData = await FirebaseHelper.loadSalesData();
+                editHistory = await FirebaseHelper.loadEditHistory();
+                console.log('Data loaded from Firebase');
+            } catch (error) {
+                console.error('Error loading data from Firebase:', error);
+                showToast('データの読み込みに失敗しました', 'error');
+                // フォールバック: localStorage から読み込み
+                const savedSalesData = localStorage.getItem('salesData');
+                const savedEditHistory = localStorage.getItem('editHistory');
+                if (savedSalesData) {
+                    salesData = JSON.parse(savedSalesData);
+                }
+                if (savedEditHistory) {
+                    editHistory = JSON.parse(savedEditHistory);
+                }
             }
         }
 
@@ -2967,28 +3001,57 @@
         }
 
         // ストアデータ読み込み
-        function loadStoreData() {
-            const savedStoreData = localStorage.getItem('storeData');
-            const savedBudgetData = localStorage.getItem('budgetData');
-            
-            if (savedStoreData) {
-                storeData = JSON.parse(savedStoreData);
-            } else {
-                // デフォルトストアデータ
-                storeData = {
-                    'store_001': '本店',
-                    'store_002': '支店A',
-                    'store_003': '支店B',
-                    'store_004': '支店C'
-                };
-                localStorage.setItem('storeData', JSON.stringify(storeData));
-            }
-            
-            // storesオブジェクトをstoreDataと同期
-            stores = { ...storeData };
-            
-            if (savedBudgetData) {
-                budgetData = JSON.parse(savedBudgetData);
+        async function loadStoreData() {
+            try {
+                const savedStoreData = await FirebaseHelper.loadStoreData();
+                const savedBudgetData = await FirebaseHelper.loadBudgetData();
+                
+                if (savedStoreData && Object.keys(savedStoreData).length > 0) {
+                    storeData = savedStoreData;
+                } else {
+                    // デフォルトストアデータ
+                    storeData = {
+                        'store_001': '本店',
+                        'store_002': '支店A',
+                        'store_003': '支店B',
+                        'store_004': '支店C'
+                    };
+                    await FirebaseHelper.saveStoreData(storeData);
+                }
+                
+                // storesオブジェクトをstoreDataと同期
+                stores = { ...storeData };
+                
+                if (savedBudgetData && Object.keys(savedBudgetData).length > 0) {
+                    budgetData = savedBudgetData;
+                } else {
+                    budgetData = {};
+                }
+            } catch (error) {
+                console.error('Error loading store data from Firebase:', error);
+                // フォールバック: localStorage から読み込み
+                const savedStoreData = localStorage.getItem('storeData');
+                const savedBudgetData = localStorage.getItem('budgetData');
+                
+                if (savedStoreData) {
+                    storeData = JSON.parse(savedStoreData);
+                } else {
+                    storeData = {
+                        'store_001': '本店',
+                        'store_002': '支店A',
+                        'store_003': '支店B',
+                        'store_004': '支店C'
+                    };
+                    await FirebaseHelper.saveStoreData(storeData);
+                }
+                
+                stores = { ...storeData };
+                
+                if (savedBudgetData) {
+                    budgetData = JSON.parse(savedBudgetData);
+                } else {
+                    budgetData = {};
+                }
             }
             
             updateStoreSelects();
@@ -3079,7 +3142,7 @@
         }
 
         // 店舗編集保存
-        function saveStoreEdit(e) {
+        async function saveStoreEdit(e) {
             e.preventDefault();
             
             const originalStoreId = document.getElementById('editStoreId').value;
@@ -3102,20 +3165,20 @@
                     showToast('この店舗IDは既に存在します', 'error');
                     return;
                 }
-                storeData[newStoreId] = storeName;
-                stores[newStoreId] = storeName;
-                showToast('新しい店舗を追加しました', 'success');
-            }
-            
-            localStorage.setItem('storeData', JSON.stringify(storeData));
-            updateStoreSelects();
-            updateStoreManagementList();
-            updateAllViews();
-            closeStoreEditModal();
+                            storeData[newStoreId] = storeName;
+            stores[newStoreId] = storeName;
+            showToast('新しい店舗を追加しました', 'success');
+        }
+        
+        await FirebaseHelper.saveStoreData(storeData);
+        updateStoreSelects();
+        updateStoreManagementList();
+        updateAllViews();
+        closeStoreEditModal();
         }
 
         // 予算保存
-        function saveBudget() {
+        async function saveBudget() {
             const storeId = document.getElementById('budgetStoreSelect').value;
             const amount = parseInt(document.getElementById('budgetAmount').value);
             const month = document.getElementById('budgetMonth').value;
@@ -3133,7 +3196,7 @@
                 createdAt: new Date().toISOString()
             };
             
-            localStorage.setItem('budgetData', JSON.stringify(budgetData));
+            await FirebaseHelper.saveBudgetData(budgetData);
             
             document.getElementById('budgetStoreSelect').value = '';
             document.getElementById('budgetAmount').value = '';
@@ -3195,7 +3258,7 @@
             return records;
         }
 
-        function findStoreIdByName(storeName) {
+        async function findStoreIdByName(storeName) {
             // storeData/storesオブジェクトから店舗IDを検索
             for (const storeId in storeData) {
                 if (storeData[storeId] === storeName) {
@@ -3217,8 +3280,8 @@
             stores[newStoreId] = storeName;
             
             // データを保存
-            localStorage.setItem('storeData', JSON.stringify(storeData));
-            localStorage.setItem('stores', JSON.stringify(stores));
+            await FirebaseHelper.saveStoreData(storeData);
+            await FirebaseHelper.saveStores(stores);
             updateStoreSelects();
             
             // 新規店舗作成をユーザーに通知
@@ -3227,7 +3290,7 @@
             return newStoreId;
         }
 
-        function validateBulkRecord(record) {
+        async function validateBulkRecord(record) {
             const errors = [];
             
             if (!record.date) {
@@ -3237,7 +3300,7 @@
             if (!record.storeName) {
                 errors.push('店舗名が無効です');
             } else {
-                const storeId = findStoreIdByName(record.storeName);
+                const storeId = await findStoreIdByName(record.storeName);
                 if (!storeId) {
                     errors.push(`店舗名 "${record.storeName}" が見つかりません`);
                 }
@@ -3246,7 +3309,7 @@
             return errors;
         }
 
-        function previewBulkData() {
+        async function previewBulkData() {
             const inputText = document.getElementById('bulkDataInput').value;
             
             if (!inputText.trim()) {
@@ -3263,9 +3326,9 @@
             let errorCount = 0;
             let previewHTML = '';
             
-            records.forEach((record, index) => {
-                const errors = validateBulkRecord(record);
-                const storeId = findStoreIdByName(record.storeName);
+            for (const [index, record] of records.entries()) {
+                const errors = await validateBulkRecord(record);
+                const storeId = await findStoreIdByName(record.storeName);
                 
                 // 重複チェック
                 const existingRecord = salesData.find(item => 
@@ -3311,7 +3374,7 @@
                         </div>
                     `;
                 }
-            });
+            }
             
             previewResults.innerHTML = previewHTML;
             previewSummary.textContent = `解析結果: ${records.length}件中 ${validCount}件が有効、${errorCount}件がエラー`;
@@ -3322,7 +3385,7 @@
             previewArea.classList.remove('hidden');
         }
 
-        function executeBulkImport() {
+        async function executeBulkImport() {
             const inputText = document.getElementById('bulkDataInput').value;
             const records = parseBulkData(inputText);
             
@@ -3330,9 +3393,9 @@
             let errorCount = 0;
             const results = [];
             
-            records.forEach((record, index) => {
-                const errors = validateBulkRecord(record);
-                const storeId = findStoreIdByName(record.storeName);
+            for (const [index, record] of records.entries()) {
+                const errors = await validateBulkRecord(record);
+                const storeId = await findStoreIdByName(record.storeName);
                 
                 // 重複チェック
                 const existingRecord = salesData.find(item => 
@@ -3376,10 +3439,10 @@
                         data: record
                     });
                 }
-            });
+            }
             
             // データを保存
-            saveData();
+            await saveData();
             
             // 結果を表示
             const resultArea = document.getElementById('bulkImportResultArea');
@@ -3419,7 +3482,7 @@
         }
         
         // 直接登録機能
-        function directImport() {
+        async function directImport() {
             const inputText = document.getElementById('bulkDataInput').value;
             
             if (!inputText.trim()) {
@@ -3437,9 +3500,9 @@
             let errorCount = 0;
             const results = [];
             
-            records.forEach((record, index) => {
-                const errors = validateBulkRecord(record);
-                const storeId = findStoreIdByName(record.storeName);
+            for (const [index, record] of records.entries()) {
+                const errors = await validateBulkRecord(record);
+                const storeId = await findStoreIdByName(record.storeName);
                 
                 // 重複チェック
                 const existingRecord = salesData.find(item => 
@@ -3477,10 +3540,10 @@
                         results.push(`❌ ${record.date} - ${record.storeName}: ${errors.join(', ')}`);
                     }
                 }
-            });
+            }
             
             // データを保存
-            saveData();
+            await saveData();
             
             // 結果を表示
             const resultArea = document.getElementById('importResultArea');
@@ -3938,7 +4001,7 @@
         }
 
         // 最終登録実行
-        function finalSubmit() {
+        async function finalSubmit() {
             if (!window.tempFormData) {
                 console.log('tempFormData is missing');
                 return;
@@ -3946,12 +4009,12 @@
             
             console.log('Executing finalSubmit with data:', window.tempFormData);
             
-            salesData.push(window.tempFormData);
-            saveData();
-            clearForm();
-            updateAllViews();
-            
-            showToast('売上データを登録しました', 'success');
+                    salesData.push(window.tempFormData);
+        await saveData();
+        clearForm();
+        updateAllViews();
+        
+        showToast('売上データを登録しました', 'success');
             
             // 即座にモーダルを閉じる
             console.log('Closing modal...');
@@ -4079,15 +4142,21 @@
         }
 
         // 店休日データの保存
-        function saveClosedDaysData() {
-            localStorage.setItem('closedDaysData', JSON.stringify(closedDaysData));
+        async function saveClosedDaysData() {
+            await FirebaseHelper.saveClosedDaysData(closedDaysData);
         }
 
         // 店休日データの読み込み
-        function loadClosedDaysData() {
-            const saved = localStorage.getItem('closedDaysData');
-            if (saved) {
-                closedDaysData = JSON.parse(saved);
+        async function loadClosedDaysData() {
+            try {
+                closedDaysData = await FirebaseHelper.loadClosedDaysData();
+            } catch (error) {
+                console.error('Error loading closed days data from Firebase:', error);
+                // フォールバック: localStorage から読み込み
+                const saved = localStorage.getItem('closedDaysData');
+                if (saved) {
+                    closedDaysData = JSON.parse(saved);
+                }
             }
         }
 
