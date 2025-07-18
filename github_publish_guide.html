@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Pages 公開ガイド</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 20px;
+            background: #f5f5f7;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1d1d1f;
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .step {
+            background: #f6f6f9;
+            padding: 25px;
+            border-radius: 8px;
+            margin: 25px 0;
+            border-left: 4px solid #007aff;
+            position: relative;
+        }
+        .step-number {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            background: #007aff;
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .highlight {
+            background: #ffeb3b;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .code {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: Monaco, monospace;
+            font-size: 14px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .success {
+            background: #e8f5e8;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 2px solid #4caf50;
+            text-align: center;
+        }
+        .important {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 2px solid #ffeaa7;
+        }
+        .screenshot {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #2196f3;
+        }
+        ol {
+            padding-left: 25px;
+        }
+        li {
+            margin: 10px 0;
+        }
+        .url-example {
+            background: #000;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: Monaco, monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        .button-example {
+            background: #007aff;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            display: inline-block;
+            margin: 5px;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 GitHub Pages で売上管理システムを公開</h1>
+        
+        <div class="important">
+            <h2>🎯 最終目標</h2>
+            <p>iPhoneで動作する売上管理システムを <strong>無料</strong> で公開し、どこからでもアクセスできるようにします。</p>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">1</div>
+            <h2>🚀 GitHubアカウント準備</h2>
+            <ol>
+                <li><strong>GitHub.com</strong> にアクセス</li>
+                <li>アカウントがない場合は <span class="highlight">「Sign up」</span> で新規登録</li>
+                <li>既にある場合は <span class="highlight">「Sign in」</span> でログイン</li>
+            </ol>
+            <div class="screenshot">
+                💡 <strong>ポイント:</strong> GitHubアカウントは無料で作成できます
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">2</div>
+            <h2>📂 新しいリポジトリを作成</h2>
+            <ol>
+                <li>画面右上の <span class="highlight">「+」</span> ボタンをクリック</li>
+                <li><span class="highlight">「New repository」</span> を選択</li>
+                <li>以下を入力：
+                    <ul>
+                        <li>Repository name: <span class="highlight">sales-management</span></li>
+                        <li>Description: <span class="highlight">売上管理システム</span></li>
+                        <li>⚠️ <strong>必ず「Public」を選択</strong></li>
+                    </ul>
+                </li>
+                <li><span class="button-example">Create repository</span> をクリック</li>
+            </ol>
+            <div class="screenshot">
+                ⚠️ <strong>重要:</strong> 「Private」を選択すると公開できません
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">3</div>
+            <h2>📤 ファイルをアップロード</h2>
+            <ol>
+                <li><span class="highlight">「uploading an existing file」</span> をクリック</li>
+                <li>以下のいずれかの方法でファイルを追加：
+                    <ul>
+                        <li><strong>方法A:</strong> <span class="highlight">index.html</span> ファイルをドラッグ&ドロップ</li>
+                        <li><strong>方法B:</strong> <span class="highlight">「choose your files」</span> で選択</li>
+                    </ul>
+                </li>
+                <li>ファイルが追加されたら下にスクロール</li>
+                <li><span class="button-example">Commit changes</span> をクリック</li>
+            </ol>
+            <div class="screenshot">
+                📁 <strong>使用ファイル:</strong> /Users/ko/index.html
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">4</div>
+            <h2>🌐 GitHub Pages を有効化</h2>
+            <ol>
+                <li>リポジトリのページで <span class="highlight">「Settings」</span> タブをクリック</li>
+                <li>左メニューの <span class="highlight">「Pages」</span> をクリック</li>
+                <li>Source で <span class="highlight">「Deploy from a branch」</span> を選択</li>
+                <li>Branch で <span class="highlight">「main」</span> を選択</li>
+                <li><span class="button-example">Save</span> をクリック</li>
+            </ol>
+            <div class="screenshot">
+                ⏱️ <strong>処理時間:</strong> 設定後、数分で公開されます
+            </div>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">5</div>
+            <h2>🎉 公開URL取得</h2>
+            <ol>
+                <li>数分後にページを更新</li>
+                <li>上部に緑色のチェックマーク ✅ と公開URLが表示される</li>
+                <li>URLをコピー</li>
+            </ol>
+            <div class="url-example">
+                https://yourusername.github.io/sales-management/
+            </div>
+            <div class="screenshot">
+                📱 <strong>このURLをiPhoneのSafariで開くと売上管理システムが動作します</strong>
+            </div>
+        </div>
+        
+        <div class="success">
+            <h2>🎊 完了！</h2>
+            <p><strong>公開されたURLをiPhoneでアクセスしてください</strong></p>
+            <p>動作確認後、必要に応じてチェックボックスなどの微調整を行います</p>
+        </div>
+        
+        <div class="step">
+            <div class="step-number">6</div>
+            <h2>📱 iPhone での使用方法</h2>
+            <ol>
+                <li>公開URLをiPhoneのSafariで開く</li>
+                <li>正常に動作することを確認</li>
+                <li>「共有」→「ホーム画面に追加」でアプリ風に使用</li>
+                <li>ブックマークに追加して簡単アクセス</li>
+            </ol>
+        </div>
+        
+        <div class="important">
+            <h2>❓ 困ったときは</h2>
+            <ul>
+                <li>🔄 ページが表示されない → 数分待ってから再度アクセス</li>
+                <li>🚫 エラーが出る → Publicに設定されているか確認</li>
+                <li>📱 iPhoneで動作しない → URLが正しいか確認</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
