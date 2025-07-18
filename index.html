@@ -2,7 +2,10 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="format-detection" content="telephone=no">
     <title>売上管理システム</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -10,6 +13,10 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database.js"></script>
     <style>
         body {
             font-family: 'Noto Sans JP', sans-serif;
@@ -113,6 +120,83 @@
         .comparison-neutral {
             background: #f3f4f6;
             color: #374151;
+        }
+        
+        /* スマートフォン最適化 */
+        @media (max-width: 768px) {
+            /* タッチ操作の最適化 */
+            * {
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
+            }
+            
+            /* ボタンサイズの拡大 */
+            .tab-button {
+                min-height: 44px;
+                font-size: 14px;
+                padding: 12px 16px;
+            }
+            
+            /* 入力フィールドの最適化 */
+            .input-field {
+                font-size: 16px; /* iOSでズームを防ぐ */
+                min-height: 44px;
+                padding: 12px 16px;
+            }
+            
+            /* フォーム要素の最適化 */
+            select, input, button {
+                font-size: 16px;
+                min-height: 44px;
+            }
+            
+            /* カードの余白調整 */
+            .card {
+                margin: 8px;
+                padding: 16px;
+            }
+            
+            /* ヘッダーの調整 */
+            header h1 {
+                font-size: 20px;
+            }
+            
+            /* タブナビゲーションの調整 */
+            nav .flex {
+                gap: 4px;
+            }
+            
+            /* モーダルの調整 */
+            .modal {
+                padding: 16px;
+            }
+            
+            /* テーブルの調整 */
+            .overflow-x-auto {
+                font-size: 12px;
+            }
+            
+            /* グラフの調整 */
+            canvas {
+                max-height: 300px;
+            }
+        }
+        
+        /* 超小型デバイス対応 */
+        @media (max-width: 480px) {
+            .tab-button {
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+            
+            .card {
+                margin: 4px;
+                padding: 12px;
+            }
+            
+            header h1 {
+                font-size: 18px;
+            }
         }
     </style>
 </head>
@@ -282,21 +366,61 @@
                         </div>
                     </div>
                     
-                    <!-- グラフ表示 -->
+                    <!-- 数字・文字のみのリッチな表示 -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- 日別売上＋予算ライングラフ -->
-                        <div class="bg-white p-4 rounded-lg shadow-inner">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">📊 日別売上＋予算ライン</h3>
-                            <div class="relative h-80">
-                                <canvas id="analysisChart"></canvas>
+                        <!-- 売上サマリー -->
+                        <div class="bg-white p-6 rounded-lg shadow-inner">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-6 text-center">💰 売上サマリー</h3>
+                            <div id="salesSummaryDisplay" class="space-y-4">
+                                <div class="flex justify-between items-center p-4 bg-green-50 rounded-lg border border-green-200">
+                                    <span class="text-gray-700 font-medium">📈 総売上</span>
+                                    <span class="text-2xl font-bold text-green-600">¥0</span>
+                                </div>
+                                <div class="flex justify-between items-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                    <span class="text-gray-700 font-medium">📊 平均日売上</span>
+                                    <span class="text-xl font-bold text-blue-600">¥0</span>
+                                </div>
+                                <div class="flex justify-between items-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                                    <span class="text-gray-700 font-medium">📝 総レポート数</span>
+                                    <span class="text-xl font-bold text-purple-600">0件</span>
+                                </div>
+                                <div class="flex justify-between items-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                                    <span class="text-gray-700 font-medium">📅 分析期間</span>
+                                    <span class="text-lg font-bold text-orange-600">0日間</span>
+                                </div>
                             </div>
                         </div>
                         
-                        <!-- 月内進捗＋目標達成グラフ -->
-                        <div class="bg-white p-4 rounded-lg shadow-inner">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">📈 月内進捗＋目標達成</h3>
-                            <div class="relative h-80">
-                                <canvas id="comparisonChart"></canvas>
+                        <!-- 進捗＋目標達成状況 -->
+                        <div class="bg-white p-6 rounded-lg shadow-inner">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-6 text-center">🎯 進捗＋目標達成状況</h3>
+                            <div id="progressDisplay" class="space-y-4">
+                                <div class="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-gray-700 font-medium">🎯 月間目標</span>
+                                        <span class="text-lg font-bold text-yellow-600">¥0</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-gray-700 font-medium">📊 達成率</span>
+                                        <span class="text-2xl font-bold text-yellow-600">0%</span>
+                                    </div>
+                                </div>
+                                <div class="p-4 bg-red-50 rounded-lg border border-red-200">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-gray-700 font-medium">🔺 目標との差額</span>
+                                        <span class="text-lg font-bold text-red-600">¥0</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-gray-700 font-medium">📈 必要日売上</span>
+                                        <span class="text-lg font-bold text-red-600">¥0</span>
+                                    </div>
+                                </div>
+                                <div class="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-gray-700 font-medium">⏰ 残り日数</span>
+                                        <span class="text-xl font-bold text-indigo-600">0日</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -892,6 +1016,22 @@
         // 店舗マスタ（初期化時に動的に設定）
         let stores = {};
 
+        // Firebase設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyCPAFs5hVHNgG9X5z9enzspidT1ZwJJ9-A",
+            authDomain: "uriagehoukoku-7f691.firebaseapp.com",
+            databaseURL: "https://uriagehoukoku-7f691-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "uriagehoukoku-7f691",
+            storageBucket: "uriagehoukoku-7f691.firebasestorage.app",
+            messagingSenderId: "343060704167",
+            appId: "1:343060704167:web:e0b3379a318c09dab02482",
+            measurementId: "G-H63PH8NRBJ"
+        };
+
+        // Firebase初期化
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.database(app);
+
         // 初期化
         document.addEventListener('DOMContentLoaded', function() {
             initializeFlatpickr();
@@ -1228,7 +1368,7 @@
             calculateValues();
         }
 
-        // 分析チャートの更新
+        // 分析データの更新（数字表示用）
         function updateAnalysisChart() {
             const storeId = document.getElementById('analysisStore').value;
             const staffName = document.getElementById('analysisStaff').value;
@@ -1256,180 +1396,82 @@
             // 日付順にソート
             filteredData.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-            // 予算ラインの計算
+            // 売上サマリーの計算
+            const totalSales = filteredData.reduce((sum, item) => sum + item.total_sales, 0);
+            const totalExpense = filteredData.reduce((sum, item) => sum + item.expense, 0);
+            const reportCount = filteredData.length;
+            const avgDailySales = reportCount > 0 ? totalSales / reportCount : 0;
+            const analysisPeriod = reportCount > 0 ? reportCount : 0;
+
+            // 予算と進捗の計算
             const currentMonth = new Date().toISOString().slice(0, 7);
             const budgetKey = `${storeId}_${currentMonth}`;
             const monthlyBudget = budgetData[budgetKey]?.amount || 0;
-            const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-            const dailyBudget = monthlyBudget / daysInMonth;
+            const achievementRate = monthlyBudget > 0 ? (totalSales / monthlyBudget * 100).toFixed(1) : 0;
+            const targetDifference = monthlyBudget - totalSales;
+            const remainingDays = Math.max(0, new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate());
+            const requiredDailySales = remainingDays > 0 ? targetDifference / remainingDays : 0;
 
-            const ctx = document.getElementById('analysisChart').getContext('2d');
-
-            if (currentChart) {
-                currentChart.destroy();
+            // 売上サマリー表示を更新
+            const salesSummaryDisplay = document.getElementById('salesSummaryDisplay');
+            if (salesSummaryDisplay) {
+                salesSummaryDisplay.innerHTML = `
+                    <div class="flex justify-between items-center p-4 bg-green-50 rounded-lg border border-green-200">
+                        <span class="text-gray-700 font-medium">📈 総売上</span>
+                        <span class="text-2xl font-bold text-green-600">¥${formatNumber(totalSales)}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <span class="text-gray-700 font-medium">📊 平均日売上</span>
+                        <span class="text-xl font-bold text-blue-600">¥${formatNumber(avgDailySales)}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                        <span class="text-gray-700 font-medium">📝 総レポート数</span>
+                        <span class="text-xl font-bold text-purple-600">${reportCount}件</span>
+                    </div>
+                    <div class="flex justify-between items-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                        <span class="text-gray-700 font-medium">📅 分析期間</span>
+                        <span class="text-lg font-bold text-orange-600">${analysisPeriod}日間</span>
+                    </div>
+                `;
             }
 
-            const datasets = [{
-                label: staffName ? `${staffName}の売上` : '売上',
-                data: filteredData.map(item => item.total_sales),
-                borderColor: 'rgb(99, 102, 241)',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                tension: 0.1,
-                fill: false
-            }, {
-                label: '経費',
-                data: filteredData.map(item => item.expense),
-                borderColor: 'rgb(239, 68, 68)',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                tension: 0.1,
-                fill: false
-            }];
-
-            // 予算ラインを追加（予算が設定されている場合）
-            if (monthlyBudget > 0) {
-                datasets.push({
-                    label: '日別予算目標',
-                    data: filteredData.map(() => dailyBudget),
-                    borderColor: 'rgb(34, 197, 94)',
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                    borderDash: [5, 5],
-                    tension: 0,
-                    fill: false
-                });
+            // 進捗表示を更新
+            const progressDisplay = document.getElementById('progressDisplay');
+            if (progressDisplay) {
+                progressDisplay.innerHTML = `
+                    <div class="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-gray-700 font-medium">🎯 月間目標</span>
+                            <span class="text-lg font-bold text-yellow-600">¥${formatNumber(monthlyBudget)}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-700 font-medium">📊 達成率</span>
+                            <span class="text-2xl font-bold text-yellow-600">${achievementRate}%</span>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-red-50 rounded-lg border border-red-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-gray-700 font-medium">🔺 目標との差額</span>
+                            <span class="text-lg font-bold text-red-600">¥${formatNumber(Math.abs(targetDifference))}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-700 font-medium">📈 必要日売上</span>
+                            <span class="text-lg font-bold text-red-600">¥${formatNumber(Math.max(0, requiredDailySales))}</span>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-700 font-medium">⏰ 残り日数</span>
+                            <span class="text-xl font-bold text-indigo-600">${remainingDays}日</span>
+                        </div>
+                    </div>
+                `;
             }
-
-            currentChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: filteredData.map(item => item.date),
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return '¥' + formatNumber(value);
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
-                    }
-                }
-            });
 
             // スタッフ選択を更新
             updateStaffOptions();
-            // 月内進捗チャートも更新
-            updateComparisonChart();
         }
 
-        // 月内進捗チャートの更新
-        function updateComparisonChart() {
-            const storeId = document.getElementById('analysisStore').value;
-            const staffName = document.getElementById('analysisStaff').value;
-
-            let filteredData = salesData;
-
-            if (storeId) {
-                filteredData = filteredData.filter(item => item.store_id === storeId);
-            }
-
-            if (staffName) {
-                filteredData = filteredData.filter(item => item.staff_name === staffName);
-            }
-
-            // 当月のデータのみ
-            const currentDate = new Date();
-            const currentMonth = currentDate.getMonth();
-            const currentYear = currentDate.getFullYear();
-
-            const currentMonthData = filteredData.filter(item => {
-                const itemDate = new Date(item.date);
-                return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
-            });
-
-            // 累積売上を計算
-            currentMonthData.sort((a, b) => new Date(a.date) - new Date(b.date));
-            let cumulativeSales = 0;
-            const cumulativeData = currentMonthData.map(item => {
-                cumulativeSales += item.total_sales;
-                return cumulativeSales;
-            });
-
-            // 予算の累積目標ライン
-            const currentMonthStr = new Date().toISOString().slice(0, 7);
-            const budgetKey = `${storeId}_${currentMonthStr}`;
-            const monthlyBudget = budgetData[budgetKey]?.amount || 0;
-            
-            const today = new Date().getDate();
-            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-            const dailyBudget = monthlyBudget / daysInMonth;
-            
-            const budgetLine = currentMonthData.map((_, index) => dailyBudget * (index + 1));
-
-            const ctx = document.getElementById('comparisonChart').getContext('2d');
-
-            if (comparisonChart) {
-                comparisonChart.destroy();
-            }
-
-            const datasets = [{
-                label: staffName ? `${staffName}の累積売上` : '累積売上',
-                data: cumulativeData,
-                borderColor: 'rgb(99, 102, 241)',
-                backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                tension: 0.1,
-                fill: true
-            }];
-
-            // 予算ラインを追加（予算が設定されている場合）
-            if (monthlyBudget > 0) {
-                datasets.push({
-                    label: '累積予算目標',
-                    data: budgetLine,
-                    borderColor: 'rgb(34, 197, 94)',
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                    borderDash: [5, 5],
-                    tension: 0,
-                    fill: false
-                });
-            }
-
-            comparisonChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: currentMonthData.map(item => new Date(item.date).getDate() + '日'),
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return '¥' + formatNumber(value);
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
-                    }
-                }
-            });
-        }
 
         // スタッフ選択オプションの更新
         function updateStaffOptions() {
